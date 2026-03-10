@@ -241,9 +241,20 @@
   <!-- TAB: HISTORICAL -->
   <div class="tab-content" id="tab-historical">
     <div class="card">
-      <h3>Historical BS&rarr;India Breakeven (M+1 FFA)</h3>
-      <div class="pos-selector" id="histPosSelector">
-        <span style="font-size:10px;color:var(--text-dim);font-family:var(--font-mono);text-transform:uppercase;margin-right:4px;">Opening Position:</span>
+      <h3>Historical BS&rarr;India Breakeven</h3>
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+        <div class="pos-selector" id="histPosSelector" style="margin-bottom:0;">
+          <span style="font-size:10px;color:var(--text-dim);font-family:var(--font-mono);text-transform:uppercase;margin-right:4px;">Position:</span>
+        </div>
+        <div>
+          <span style="font-size:10px;color:var(--text-dim);font-family:var(--font-mono);text-transform:uppercase;margin-right:4px;">Lookback:</span>
+          <div class="toggle-group" id="histLookbackToggle" style="display:inline-flex;">
+            <button class="toggle-btn active" data-val="1">1Y</button>
+            <button class="toggle-btn" data-val="3">3Y</button>
+            <button class="toggle-btn" data-val="5">5Y</button>
+            <button class="toggle-btn" data-val="0">All</button>
+          </div>
+        </div>
       </div>
       <div class="chart-container" style="height:400px;">
         <canvas id="histChart"></canvas>
@@ -1034,6 +1045,7 @@ function renderForwardBreakevens() {
 // ── Historical Breakeven ──
 var histChart = null;
 var histPositions = { Average: true, Constanta: false, Piraeus: false, Augusta: false, Fujairah: false };
+var histLookbackYears = 1;
 var AVG_COMPONENTS = ['Constanta', 'Istanbul', 'Augusta', 'Piraeus'];
 
 function calcHistoricalBreakevens() {
@@ -1063,6 +1075,14 @@ function calcHistoricalBreakevens() {
   var allDates = Object.keys(rateLookup).filter(function(dt) {
     return bunkerLookup[dt] && bunkerLookup[dt].VLSFO && bunkerLookup[dt].LSMGO;
   }).sort();
+
+  // Apply lookback filter
+  if (histLookbackYears > 0) {
+    var cutoff = new Date();
+    cutoff.setFullYear(cutoff.getFullYear() - histLookbackYears);
+    var cutoffStr = cutoff.toISOString().slice(0, 10);
+    allDates = allDates.filter(function(dt) { return dt >= cutoffStr; });
+  }
 
   var selectedPositions = Object.keys(histPositions).filter(function(p) { return histPositions[p]; });
   var results = {};
@@ -1934,6 +1954,16 @@ function init() {
       calcHistoricalBreakevens();
     });
     histSelector.appendChild(chip);
+  });
+
+  // Historical lookback toggle
+  document.querySelectorAll('#histLookbackToggle .toggle-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('#histLookbackToggle .toggle-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      histLookbackYears = parseInt(btn.dataset.val);
+      calcHistoricalBreakevens();
+    });
   });
 
   // Build period toggle buttons (Spot + M+1 to M+6 from forward curves)
