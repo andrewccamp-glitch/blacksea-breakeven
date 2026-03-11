@@ -3,30 +3,67 @@
 
 const BS_DATA = {
 
-  // ── Vessel Specifications (Baltic Exchange MR50 standard) ──
-  vessel: {
-    name: "MR50 (Baltic Standard)",
-    dwt: 50000,
-    cargoSAIndia: 40000,       // Black Sea→India cargo (mt)
-    cargoMRonLR1: 45000,       // MR on LR1 routes (mt)
-    ladenSpeed: 13.0,          // knots
-    ballastSpeed: 12.0,        // knots
-    ladenCons: 23.3,           // mt/day VLSFO laden
-    ballastCons: 17.0,         // mt/day VLSFO ballast
-    portConsLoad: 5.0,         // mt/day at load port (LSMGO)
-    portConsDisch: 25.0,       // mt/day at discharge port (VLSFO, heating/pumping)
-    portConsWait: 5.0,         // mt/day waiting
-    commissionPct: 3.75,
-    seaMargin: 1.05,           // 5% sea margin
-    riverDays: 0,              // No river transit for Black Sea
-    cleaningCost: 25000,       // per cleaning ($)
-    cleaningDays: 1.0,         // per cleaning (days)
+  // ── Vessel Class Definitions (Baltic Exchange GMB standard specs) ──
+  vesselClasses: {
+    HANDC37: {
+      name: "HANDC37 (Baltic Clean Handy)", dwt: 37800, intake: 34000,
+      cargoBSIndia: 34000,        // no draft limit, full intake
+      ladenSpeed: 13.0, ballastSpeed: 12.0,
+      ladenCons: 21.3, ballastCons: 16.8,
+      portConsLoad: 5.0, portConsDisch: 20.0, portConsWait: 5.0,
+      commissionPct: 3.75, seaMargin: 1.05,
+      riverDays: 0, cleaningCost: 25000, cleaningDays: 1.0,
+    },
+    MR50: {
+      name: "MR50 (Baltic Standard MR)", dwt: 50000, intake: 46000,
+      cargoBSIndia: 40000,        // capped at 40k (Odessa draft)
+      ladenSpeed: 13.0, ballastSpeed: 12.0,
+      ladenCons: 23.3, ballastCons: 17.0,
+      portConsLoad: 5.0, portConsDisch: 25.0, portConsWait: 5.0,
+      commissionPct: 3.75, seaMargin: 1.05,
+      riverDays: 0, cleaningCost: 25000, cleaningDays: 1.0,
+    },
+    LR1_75: {
+      name: "LR1-75 (Baltic Standard LR1)", dwt: 75000, intake: 70000,
+      cargoBSIndia: 61000,        // capped at 61k (Odessa draft)
+      ladenSpeed: 13.0, ballastSpeed: 12.0,
+      ladenCons: 30.5, ballastCons: 24.5,
+      portConsLoad: 5.0, portConsDisch: 32.0, portConsWait: 5.0,
+      commissionPct: 3.75, seaMargin: 1.05,
+      riverDays: 0, cleaningCost: 25000, cleaningDays: 1.0,
+    },
+    LR2_115: {
+      name: "LR2-115 (Baltic Standard LR2)", dwt: 115000, intake: 105000,
+      cargoBSIndia: 61000,        // capped at 61k (Odessa draft)
+      ladenSpeed: 13.0, ballastSpeed: 12.0,
+      ladenCons: 35.3, ballastCons: 25.3,
+      portConsLoad: 5.0, portConsDisch: 44.0, portConsWait: 5.0,
+      commissionPct: 3.75, seaMargin: 1.05,
+      riverDays: 0, cleaningCost: 25000, cleaningDays: 1.0,
+    },
   },
 
-  // ── Laytime (charterparty standard) ──
+  // ── Backward compat: default vessel points to MR50 ──
+  get vessel() { return this.vesselClasses.MR50; },
+
+  // ── Terminal Pumping Rates (mt/hr) — derived from Baltic GMB ──
+  // Each route's standard cargo / 2 days (48hrs) = mt/hr at load & discharge
+  terminalRates: {
+    TC2:  { load: 771, disch: 771 },    // 37,000 / 48h
+    TC5:  { load: 1146, disch: 1146 },  // 55,000 / 48h
+    TC6:  { load: 625, disch: 625 },    // 30,000 / 48h
+    TC12: { load: 729, disch: 729 },    // 35,000 / 48h
+    TC14: { load: 792, disch: 792 },    // 38,000 / 48h
+    TC17: { load: 729, disch: 729 },    // 35,000 / 48h
+    // BS→India physical (derived from 40,000mt / 200hrs)
+    BS_LOAD:  200,    // mt/hr at Tuapse/Taman
+    BS_DISCH: 200,    // mt/hr at Indian discharge ports
+  },
+
+  // ── Laytime (BS→India charterparty standard for MR50 40k cargo) ──
   laytime: {
-    loadHours: 200,            // 200 hours loading
-    dischHours: 200,           // 200 hours discharging
+    loadHours: 200,            // 200 hours loading (baseline for 40k)
+    dischHours: 200,           // 200 hours discharging (baseline for 40k)
     get loadDays() { return this.loadHours / 24; },
     get dischDays() { return this.dischHours / 24; },
   },
