@@ -1029,11 +1029,50 @@ function renderForwardBreakevens() {
 
   var allPositions = ['Average'].concat(positions);
 
+  // Collect FFA forward rates for display routes
+  var ffaDisplayRoutes = ['TC14', 'TC2', 'TC6'];
+  var ffaFwdData = {};
+  ffaDisplayRoutes.forEach(function(rc) {
+    ffaFwdData[rc] = fwdMonths.map(function(fm) {
+      return getFwdRate(rc, fm.y, fm.m);
+    });
+  });
+
+  // Get WS flat rates from freight-calculator data
+  var flatRates = {};
+  if (typeof FREIGHT_DATA !== 'undefined' && FREIGHT_DATA.routes) {
+    ffaDisplayRoutes.forEach(function(rc) {
+      var rd = FREIGHT_DATA.routes[rc];
+      if (rd && rd.flatRateWs) flatRates[rc] = rd.flatRateWs;
+    });
+  }
+
   // Render table
   var table = document.getElementById('fwdTable');
   var html = '<thead><tr><th>Position</th>';
   fwdMonths.forEach(function(fm) { html += '<th class="num-right">' + fm.label + '</th>'; });
   html += '</tr></thead><tbody>';
+
+  // FFA rate rows ($/mt and WS) above breakevens
+  ffaDisplayRoutes.forEach(function(rc) {
+    html += '<tr style="background:rgba(74,142,194,0.06);font-size:10px;"><td style="color:var(--blue);">' + rc + ' $/mt</td>';
+    ffaFwdData[rc].forEach(function(rate) {
+      html += '<td class="num-right" style="color:var(--blue);">' + (rate != null ? '$' + fmtD(rate, 1) : '-') + '</td>';
+    });
+    html += '</tr>';
+    if (flatRates[rc]) {
+      html += '<tr style="background:rgba(74,142,194,0.06);font-size:10px;border-bottom:1px solid var(--border);"><td style="color:var(--text-dim);">' + rc + ' WS (flat $' + fmtD(flatRates[rc], 2) + ')</td>';
+      ffaFwdData[rc].forEach(function(rate) {
+        var ws = rate != null ? (rate / flatRates[rc] * 100) : null;
+        html += '<td class="num-right" style="color:var(--text-dim);">' + (ws != null ? 'w' + fmtD(ws, 1) : '-') + '</td>';
+      });
+      html += '</tr>';
+    }
+  });
+
+  // Separator before breakevens
+  html += '<tr style="height:6px;"><td colspan="' + (fwdMonths.length + 1) + '" style="border-bottom:2px solid var(--border);padding:0;"></td></tr>';
+
   allPositions.forEach(function(pos) {
     var isAvg = pos === 'Average';
     html += '<tr style="' + (isAvg ? 'font-weight:600;background:rgba(176,108,207,0.08);border-bottom:1px solid #3a3a3e' : '') + '"><td>' + pos + '</td>';
