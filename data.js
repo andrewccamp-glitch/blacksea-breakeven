@@ -159,6 +159,7 @@ const BS_DATA = {
     "Durban|Houston":        7600,
 
     // → Rotterdam (TC2)
+    "Rotterdam|Rotterdam":   0,       // self — vessel already at load port
     "Constanta|Rotterdam":   3600,
     "Istanbul|Rotterdam":    3200,
     "Piraeus|Rotterdam":     3400,
@@ -187,9 +188,35 @@ const BS_DATA = {
     "Fujairah|Skikda":       4000,
     "Durban|Skikda":         5900,
 
-    // → Ras Tanura (TC17 / TC5)
+    // → Ras Tanura (TC5 / TC17)
+    "Constanta|Ras Tanura":  4600,    // via Bosphorus + Med + Suez
+    "Istanbul|Ras Tanura":   4200,    // via Med + Suez
+    "Piraeus|Ras Tanura":    3700,    // via Med + Suez
+    "Augusta|Ras Tanura":    4000,    // via Med + Suez
+    "Lavera|Ras Tanura":     4400,    // via Med + Suez
+    "Algeciras|Ras Tanura":  4800,    // via Med + Suez (or via Suez + Red Sea)
+    "Rotterdam|Ras Tanura":  6200,    // via Suez
+    "Las Palmas|Ras Tanura": 5600,    // via Suez
+    "Dakar|Ras Tanura":      6400,    // via Cape or via Suez
+    "Accra|Ras Tanura":      6800,    // via Cape
+    "Lagos|Ras Tanura":      6600,    // via Cape
     "Fujairah|Ras Tanura":   200,
     "Durban|Ras Tanura":     3400,
+
+    // → Mundra (TC12)
+    "Constanta|Mundra":      5200,    // via Bosphorus + Med + Suez + Arabian Sea
+    "Istanbul|Mundra":       4800,    // via Med + Suez + Arabian Sea
+    "Piraeus|Mundra":        4300,    // via Med + Suez + Arabian Sea
+    "Augusta|Mundra":        4600,    // via Med + Suez + Arabian Sea
+    "Lavera|Mundra":         5000,    // via Med + Suez + Arabian Sea
+    "Algeciras|Mundra":      5400,    // via Med + Suez + Arabian Sea
+    "Rotterdam|Mundra":      6800,    // via Suez + Arabian Sea
+    "Las Palmas|Mundra":     6200,    // via Suez
+    "Dakar|Mundra":          7000,    // via Cape or Suez
+    "Accra|Mundra":          7400,    // via Cape
+    "Lagos|Mundra":          7200,    // via Cape
+    "Fujairah|Mundra":       900,     // Arabian Sea direct
+    "Durban|Mundra":         3600,    // via Indian Ocean
 
     // === Black Sea laden voyage ===
     "Tuapse|Taman":          100,     // coastal hop in Black Sea
@@ -293,6 +320,8 @@ const BS_DATA = {
     "Constanta|Houston":   true,
     "Constanta|Rotterdam": true,
     "Constanta|Skikda":    true,
+    "Constanta|Ras Tanura": true,
+    "Constanta|Mundra":    true,
   },
 
   // ── Suez Transit Legs (ballast through Suez) ──
@@ -301,5 +330,22 @@ const BS_DATA = {
     "Fujairah|Houston":    true,    // AG → Suez → Med → Atlantic
     "Fujairah|Rotterdam":  true,
     "Fujairah|Skikda":     true,
+    // Med/Atlantic/WAF → Ras Tanura or Mundra via Suez
+    "Constanta|Ras Tanura": true,
+    "Istanbul|Ras Tanura":  true,
+    "Piraeus|Ras Tanura":   true,
+    "Augusta|Ras Tanura":   true,
+    "Lavera|Ras Tanura":    true,
+    "Algeciras|Ras Tanura": true,
+    "Rotterdam|Ras Tanura": true,
+    "Las Palmas|Ras Tanura":true,
+    "Constanta|Mundra":     true,
+    "Istanbul|Mundra":      true,
+    "Piraeus|Mundra":       true,
+    "Augusta|Mundra":       true,
+    "Lavera|Mundra":        true,
+    "Algeciras|Mundra":     true,
+    "Rotterdam|Mundra":     true,
+    "Las Palmas|Mundra":    true,
   },
 };

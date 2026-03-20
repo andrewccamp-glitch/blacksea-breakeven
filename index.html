@@ -396,8 +396,8 @@ function updateParamInputs() {
 function fmtN(n) { return n != null ? Math.round(n).toLocaleString('en-US') : '-'; }
 function fmtD(n, d) { return n != null ? n.toFixed(d) : '-'; }
 // Vessel-class-aware canal cost lookup (returns number)
-function getSuezLaden(vc) { var c = getSuezLaden(state.vesselClass); return typeof c === 'object' ? (c[vc] || c.MR50) : c; }
-function getSuezBallast(vc) { var c = getSuezBallast(state.vesselClass); return typeof c === 'object' ? (c[vc] || c.MR50) : c; }
+function getSuezLaden(vc) { var c = D.canalCosts.suez_laden; return (typeof c === 'object') ? (c[vc] || c.MR50) : c; }
+function getSuezBallast(vc) { var c = D.canalCosts.suez_ballast; return (typeof c === 'object') ? (c[vc] || c.MR50) : c; }
 function getDist(a, b) {
   var key = a + '|' + b;
   if (D.distances[key] != null) return D.distances[key];
@@ -603,16 +603,18 @@ function calcNextVoyageTCE(fromPort, routeCode, departDate) {
 }
 
 // ── Best competition TCE for an opening position ──
+// Evaluates ALL TC routes — ballast distance naturally filters unviable ones
 function calcBestCompetition(openPos, refDate) {
   var posData = D.openingPositions[openPos];
   if (!posData) return null;
 
   var best = null;
   var allComps = [];
+  var allRouteCodes = Object.keys(D.routes);
 
-  posData.competingRoutes.forEach(function(routeCode) {
+  allRouteCodes.forEach(function(routeCode) {
     var comp = calcCompetitionTCE(openPos, routeCode, refDate);
-    if (!comp) return;
+    if (!comp) return;  // skips if no distance exists (natural filter)
 
     var combinedTce = comp.tce;
     var combinedDays = comp.totalDays;
@@ -620,17 +622,14 @@ function calcBestCompetition(openPos, refDate) {
     var nextVoy = null;
 
     if (state.nextVoyage) {
-      var nextCode = posData.nextVoyage[routeCode];
-      if (nextCode === 'BEST_TC6_TC2') {
-        var nv1 = calcNextVoyageTCE('Lavera', 'TC6', comp.endDate);
-        var nv2 = calcNextVoyageTCE('Lavera', 'TC2', comp.endDate);
-        if (nv1 && nv2) nextVoy = nv1.tce >= nv2.tce ? nv1 : nv2;
-        else if (nv1) nextVoy = nv1;
-        else if (nv2) nextVoy = nv2;
-      } else if (nextCode) {
-        var from = D.routes[routeCode].ballastBack;
-        nextVoy = calcNextVoyageTCE(from, nextCode, comp.endDate);
-      }
+      // Pick best available next voyage from ballastBack position
+      var from = D.routes[routeCode].ballastBack;
+      var bestNext = null;
+      allRouteCodes.forEach(function(nrc) {
+        var nv = calcNextVoyageTCE(from, nrc, comp.endDate);
+        if (nv && (!bestNext || nv.tce > bestNext.tce)) bestNext = nv;
+      });
+      nextVoy = bestNext;
 
       if (nextVoy) {
         var nNetRev = nextVoy.gross * (1 - state.commissionPct / 100) - nextVoy.bunkerCost - nextVoy.portCosts;
