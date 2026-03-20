@@ -395,6 +395,9 @@ function updateParamInputs() {
 // ── Helpers ──
 function fmtN(n) { return n != null ? Math.round(n).toLocaleString('en-US') : '-'; }
 function fmtD(n, d) { return n != null ? n.toFixed(d) : '-'; }
+// Vessel-class-aware canal cost lookup (returns number)
+function getSuezLaden(vc) { var c = getSuezLaden(state.vesselClass); return typeof c === 'object' ? (c[vc] || c.MR50) : c; }
+function getSuezBallast(vc) { var c = getSuezBallast(state.vesselClass); return typeof c === 'object' ? (c[vc] || c.MR50) : c; }
 function getDist(a, b) {
   var key = a + '|' + b;
   if (D.distances[key] != null) return D.distances[key];
@@ -500,7 +503,7 @@ function calcCompetitionTCE(openPos, routeCode, refDate) {
   var waitDays = 1;
   var portDays = loadPortDays + dischPortDays + waitDays;
   var canalDays = 0, canalCost = 0;
-  if (route.usesSuez) { canalDays = D.canalCosts.suez_days; canalCost = D.canalCosts.suez_laden; }
+  if (route.usesSuez) { canalDays = D.canalCosts.suez_days; canalCost = getSuezLaden(state.vesselClass); }
   // Panama Canal for ballast leg
   if (isPanamaLeg(openPos, route.loadPort)) {
     canalDays += D.canalCosts.panama_waitDays;
@@ -514,7 +517,7 @@ function calcCompetitionTCE(openPos, routeCode, refDate) {
   // Suez transit for ballast leg (e.g., Fujairah → Med/Atlantic competition ports)
   if (isSuezBallastLeg(openPos, route.loadPort)) {
     canalDays += D.canalCosts.suez_days;
-    canalCost += D.canalCosts.suez_ballast;
+    canalCost += getSuezBallast(state.vesselClass);
   }
 
   var totalDays = ballastToLoadDays + ladenDays + ballastBackDays + portDays + canalDays;
@@ -576,7 +579,7 @@ function calcNextVoyageTCE(fromPort, routeCode, departDate) {
   var waitDays = 1;
   var portDays = loadPortDays + dischPortDays + waitDays;
   var canalDays = 0, canalCost = 0;
-  if (route.usesSuez) { canalDays = D.canalCosts.suez_days; canalCost = D.canalCosts.suez_laden; }
+  if (route.usesSuez) { canalDays = D.canalCosts.suez_days; canalCost = getSuezLaden(state.vesselClass); }
 
   var totalDays = b2lDays + ladenDays + portDays + canalDays;
 
@@ -673,7 +676,7 @@ function calcBSIndiaTCE(openPos, rate, refDate) {
   }
   if (isSuezBallastLeg(openPos, loadPort1)) {
     ballastCanalDays += D.canalCosts.suez_days;
-    ballastCanalCost += D.canalCosts.suez_ballast;
+    ballastCanalCost += getSuezBallast(state.vesselClass);
   }
 
   // Determine voyage month from arrival at load port
@@ -705,7 +708,8 @@ function calcBSIndiaTCE(openPos, rate, refDate) {
     }
     if (voy.ladenTransits.suez) {
       ladenTransitDays += voy.ladenTransits.suez.days;
-      ladenTransitCost += voy.ladenTransits.suez.cost;
+      var suezCost = voy.ladenTransits.suez.cost;
+      ladenTransitCost += (typeof suezCost === 'object') ? (suezCost[state.vesselClass] || suezCost.MR50) : suezCost;
     }
   }
 
@@ -1705,7 +1709,7 @@ function renderAssumptions(sub) {
     html += '<table class="assume-table" style="max-width:600px;"><thead><tr><th>Transit</th><th class="num">Cost ($)</th><th class="num">Days</th></tr></thead><tbody>';
     if (voy.ladenTransits) {
       if (voy.ladenTransits.bosphorus) html += '<tr><td>Bosphorus (laden, exiting BS)</td><td class="num">$' + fmtN(voy.ladenTransits.bosphorus.cost) + '</td><td class="num">' + fmtD(voy.ladenTransits.bosphorus.days, 1) + '</td></tr>';
-      if (voy.ladenTransits.suez) html += '<tr><td>Suez (laden, southbound)</td><td class="num">$' + fmtN(voy.ladenTransits.suez.cost) + '</td><td class="num">' + fmtD(voy.ladenTransits.suez.days, 1) + '</td></tr>';
+      if (voy.ladenTransits.suez) { var sc = voy.ladenTransits.suez.cost; var scVal = (typeof sc === 'object') ? (sc[state.vesselClass] || sc.MR50) : sc; html += '<tr><td>Suez (laden, southbound)</td><td class="num">$' + fmtN(scVal) + '</td><td class="num">' + fmtD(voy.ladenTransits.suez.days, 1) + '</td></tr>'; }
     }
     html += '</tbody></table>';
     html += '<div style="font-size:10px;color:var(--text-dim);font-family:var(--font-mono);">These costs apply to every laden voyage from Black Sea to India (Bosphorus exit + Suez transit).</div>';
@@ -1800,8 +1804,8 @@ function renderAssumptions(sub) {
   else if (currentAssumeSub === 'canals') {
     html += '<div class="assume-section">Canal Transit Costs</div>';
     html += '<table class="assume-table" style="max-width:600px;"><thead><tr><th>Canal / Direction</th><th class="num">Cost ($)</th><th class="num">Days</th></tr></thead><tbody>';
-    html += '<tr><td>Suez \u2014 Laden</td><td class="num">$' + fmtN(D.canalCosts.suez_laden) + '</td><td class="num">' + fmtD(D.canalCosts.suez_days, 1) + '</td></tr>';
-    html += '<tr><td>Suez \u2014 Ballast</td><td class="num">$' + fmtN(D.canalCosts.suez_ballast) + '</td><td class="num">' + fmtD(D.canalCosts.suez_days, 1) + '</td></tr>';
+    html += '<tr><td>Suez \u2014 Laden</td><td class="num">$' + fmtN(getSuezLaden(state.vesselClass)) + '</td><td class="num">' + fmtD(D.canalCosts.suez_days, 1) + '</td></tr>';
+    html += '<tr><td>Suez \u2014 Ballast</td><td class="num">$' + fmtN(getSuezBallast(state.vesselClass)) + '</td><td class="num">' + fmtD(D.canalCosts.suez_days, 1) + '</td></tr>';
     html += '<tr><td>Bosphorus \u2014 Laden</td><td class="num">$' + fmtN(D.canalCosts.bosphorus_laden) + '</td><td class="num">' + fmtD(D.canalCosts.bosphorus_days, 1) + '</td></tr>';
     html += '<tr><td>Bosphorus \u2014 Ballast</td><td class="num">$' + fmtN(D.canalCosts.bosphorus_ballast) + '</td><td class="num">' + fmtD(D.canalCosts.bosphorus_days, 1) + '</td></tr>';
     if (D.canalCosts.panama_ballast) html += '<tr><td>Panama \u2014 Ballast</td><td class="num">$' + fmtN(D.canalCosts.panama_ballast) + '</td><td class="num">' + fmtD(D.canalCosts.panama_waitDays, 1) + '</td></tr>';
