@@ -25,7 +25,7 @@ const BS_DATA = {
     },
     LR1_75: {
       name: "LR1-75 (Baltic Standard LR1)", dwt: 75000, intake: 70000,
-      cargoBSIndia: 61000,        // capped at 61k (Odessa draft)
+      cargoBSIndia: 67000,        // draft-limited but wider beam allows more
       ladenSpeed: 13.0, ballastSpeed: 12.0,
       ladenCons: 30.5, ballastCons: 24.5,
       portConsLoad: 5.0, portConsDisch: 32.0, portConsWait: 5.0,
@@ -34,7 +34,7 @@ const BS_DATA = {
     },
     LR2_115: {
       name: "LR2-115 (Baltic Standard LR2)", dwt: 115000, intake: 105000,
-      cargoBSIndia: 61000,        // capped at 61k (Odessa draft)
+      cargoBSIndia: 90000,        // draft-limited but much wider beam
       ladenSpeed: 13.0, ballastSpeed: 12.0,
       ladenCons: 35.3, ballastCons: 25.3,
       portConsLoad: 5.0, portConsDisch: 44.0, portConsWait: 5.0,
