@@ -3,11 +3,11 @@
 
 const BS_DATA = {
 
-  // ── Vessel Class Definitions (Baltic Exchange GMB standard specs) ──
+  // ── Vessel Class Definitions ──
   vesselClasses: {
     HANDC37: {
-      name: "HANDC37 (Baltic Clean Handy)", dwt: 37800, intake: 34000,
-      cargoBSIndia: 34000,        // no draft limit, full intake
+      name: "HANDC37 (Baltic Clean Handy)", dwt: 37800, intake: 33000,
+      cargoBSIndia: 33000,
       ladenSpeed: 13.0, ballastSpeed: 12.0,
       ladenCons: 21.3, ballastCons: 16.8,
       portConsLoad: 5.0, portConsDisch: 20.0, portConsWait: 5.0,
@@ -15,8 +15,8 @@ const BS_DATA = {
       riverDays: 0, cleaningCost: 25000, cleaningDays: 1.0,
     },
     MR50: {
-      name: "MR50 (Baltic Standard MR)", dwt: 50000, intake: 46000,
-      cargoBSIndia: 40000,        // capped at 40k (Odessa draft)
+      name: "MR50 (Baltic Standard MR)", dwt: 50000, intake: 44000,
+      cargoBSIndia: 40000,        // draft-restricted at BS/SA load ports
       ladenSpeed: 13.0, ballastSpeed: 12.0,
       ladenCons: 23.3, ballastCons: 17.0,
       portConsLoad: 5.0, portConsDisch: 25.0, portConsWait: 5.0,
@@ -24,20 +24,11 @@ const BS_DATA = {
       riverDays: 0, cleaningCost: 25000, cleaningDays: 1.0,
     },
     LR1_75: {
-      name: "LR1-75 (Baltic Standard LR1)", dwt: 75000, intake: 70000,
-      cargoBSIndia: 67000,        // draft-limited but wider beam allows more
+      name: "LR1-75 (Baltic Standard LR1)", dwt: 74000, intake: 65000,
+      cargoBSIndia: 65000,        // wider beam allows more on same draft
       ladenSpeed: 13.0, ballastSpeed: 12.0,
       ladenCons: 30.5, ballastCons: 24.5,
       portConsLoad: 5.0, portConsDisch: 32.0, portConsWait: 5.0,
-      commissionPct: 3.75, seaMargin: 1.05,
-      riverDays: 0, cleaningCost: 25000, cleaningDays: 1.0,
-    },
-    LR2_115: {
-      name: "LR2-115 (Baltic Standard LR2)", dwt: 115000, intake: 105000,
-      cargoBSIndia: 90000,        // draft-limited but much wider beam
-      ladenSpeed: 13.0, ballastSpeed: 12.0,
-      ladenCons: 35.3, ballastCons: 25.3,
-      portConsLoad: 5.0, portConsDisch: 44.0, portConsWait: 5.0,
       commissionPct: 3.75, seaMargin: 1.05,
       riverDays: 0, cleaningCost: 25000, cleaningDays: 1.0,
     },
@@ -46,24 +37,30 @@ const BS_DATA = {
   // ── Backward compat: default vessel points to MR50 ──
   get vessel() { return this.vesselClasses.MR50; },
 
-  // ── Terminal Pumping Rates (mt/hr) — derived from Baltic GMB ──
-  // Each route's standard cargo / 2 days (48hrs) = mt/hr at load & discharge
+  // ── Cargo matrix: how much each vessel class loads on each route ──
+  // Varies by route draft/berth restrictions and vessel geometry
+  cargoByRoute: {
+    HANDC37: { TC2: 33000, TC5: 33000, TC6: 30000, TC8: 33000, TC12: 33000, TC14: 33000, TC15: 33000, TC17: 33000, TC18: 33000, TC20: 33000, TC23: 30000 },
+    MR50:    { TC2: 37000, TC5: 44000, TC6: 44000, TC8: 44000, TC12: 35000, TC14: 38000, TC15: 44000, TC17: 35000, TC18: 38000, TC20: 44000, TC23: 44000 },
+    LR1_75:  { TC2: 65000, TC5: 55000, TC6: 65000, TC8: 65000, TC12: 65000, TC14: 65000, TC15: 65000, TC17: 65000, TC18: 65000, TC20: 65000, TC23: 65000 },
+  },
+
+  // ── Terminal Pumping Rates (mt/hr) ──
   terminalRates: {
-    TC2:  { load: 771, disch: 771 },    // 37,000 / 48h
-    TC5:  { load: 1146, disch: 1146 },  // 55,000 / 48h
-    TC6:  { load: 625, disch: 625 },    // 30,000 / 48h
-    TC12: { load: 729, disch: 729 },    // 35,000 / 48h
-    TC14: { load: 792, disch: 792 },    // 38,000 / 48h
-    TC17: { load: 729, disch: 729 },    // 35,000 / 48h
-    // BS→India physical (derived from 40,000mt / 200hrs)
-    BS_LOAD:  200,    // mt/hr at Tuapse/Taman
-    BS_DISCH: 200,    // mt/hr at Indian discharge ports
+    TC2:  { load: 771, disch: 771 },
+    TC5:  { load: 1146, disch: 1146 },
+    TC6:  { load: 625, disch: 625 },
+    TC12: { load: 729, disch: 729 },
+    TC14: { load: 792, disch: 792 },
+    TC17: { load: 729, disch: 729 },
+    BS_LOAD:  200,
+    BS_DISCH: 200,
   },
 
   // ── Laytime (BS→India charterparty standard for MR50 40k cargo) ──
   laytime: {
-    loadHours: 200,            // 200 hours loading (baseline for 40k)
-    dischHours: 200,           // 200 hours discharging (baseline for 40k)
+    loadHours: 200,
+    dischHours: 200,
     get loadDays() { return this.loadHours / 24; },
     get dischDays() { return this.dischHours / 24; },
   },
@@ -71,12 +68,12 @@ const BS_DATA = {
   // ── TC Route Definitions ──
   // bunkerRef: 'asia' routes use Singapore VLSFO; all others use Rotterdam VLSFO
   routes: {
-    TC2:  { desc: "Continent → USAC 37kt",         loadPort: "Rotterdam",  dischPort: "New York",      cargo: 37000,  vesselClass: "MR",  ballastBack: "Houston",    usesSuez: false, bunkerRef: "atlantic" },
-    TC5:  { desc: "MEG → Japan 55kt (LR1)",         loadPort: "Ras Tanura", dischPort: "Yokohama",      cargo: 55000,  vesselClass: "LR1", ballastBack: "Ras Tanura", usesSuez: false, bunkerRef: "asia" },
-    TC6:  { desc: "Algeria → Med 30kt (Handy)",     loadPort: "Skikda",     dischPort: "Lavera",        cargo: 30000,  vesselClass: "Small",ballastBack: "Skikda",    usesSuez: false, bunkerRef: "atlantic" },
-    TC12: { desc: "WCI → Japan 55kt (LR1)",         loadPort: "Mundra",     dischPort: "Yokohama",      cargo: 55000,  vesselClass: "LR1", ballastBack: "Mundra",     usesSuez: false, bunkerRef: "asia" },
-    TC14: { desc: "USG → Continent 38kt",           loadPort: "Houston",    dischPort: "Amsterdam",     cargo: 38000,  vesselClass: "MR",  ballastBack: "Rotterdam",  usesSuez: false, bunkerRef: "atlantic" },
-    TC17: { desc: "AG → East Africa 35kt",          loadPort: "Ras Tanura", dischPort: "Dar es Salaam", cargo: 35000,  vesselClass: "MR",  ballastBack: "Ras Tanura", usesSuez: false, bunkerRef: "asia" },
+    TC2:  { desc: "Continent -> USAC",       loadPort: "Rotterdam",  dischPort: "New York",      ballastBack: "Houston",    usesSuez: false, bunkerRef: "atlantic" },
+    TC5:  { desc: "MEG -> Japan (LR1)",      loadPort: "Ras Tanura", dischPort: "Yokohama",      ballastBack: "Ras Tanura", usesSuez: false, bunkerRef: "asia" },
+    TC6:  { desc: "Algeria -> Med (Handy)",   loadPort: "Skikda",     dischPort: "Lavera",        ballastBack: "Skikda",    usesSuez: false, bunkerRef: "atlantic" },
+    TC12: { desc: "WCI -> Japan (LR1)",       loadPort: "Mundra",     dischPort: "Yokohama",      ballastBack: "Mundra",     usesSuez: false, bunkerRef: "asia" },
+    TC14: { desc: "USG -> Continent",         loadPort: "Houston",    dischPort: "Amsterdam",     ballastBack: "Rotterdam",  usesSuez: false, bunkerRef: "atlantic" },
+    TC17: { desc: "AG -> East Africa",        loadPort: "Ras Tanura", dischPort: "Dar es Salaam", ballastBack: "Ras Tanura", usesSuez: false, bunkerRef: "asia" },
   },
 
   // ── Opening Positions & Competition Mapping ──
@@ -119,7 +116,7 @@ const BS_DATA = {
     // Suez costs are vessel-class specific; looked up via state.vesselClass
     ladenTransits: {
       bosphorus: { cost: 10000, days: 0.5 },
-      suez: { cost: { HANDC37: 120000, MR50: 170000, LR1_75: 350000, LR2_115: 450000 }, days: 1.0 },
+      suez: { cost: { HANDC37: 120000, MR50: 170000, LR1_75: 350000 }, days: 1.0 },
     },
   },
 
@@ -286,8 +283,8 @@ const BS_DATA = {
 
   // ── Canal Costs (vessel-class specific for Suez) ──
   canalCosts: {
-    suez_laden:   { HANDC37: 120000, MR50: 170000, LR1_75: 350000, LR2_115: 450000 },
-    suez_ballast: { HANDC37: 100000, MR50: 140000, LR1_75: 280000, LR2_115: 360000 },
+    suez_laden:   { HANDC37: 120000, MR50: 170000, LR1_75: 350000 },
+    suez_ballast: { HANDC37: 100000, MR50: 140000, LR1_75: 280000 },
     suez_days:    1.0,
     bosphorus_laden:   10000,    // Montreux Convention: no toll, agency/pilotage only
     bosphorus_ballast: 8000,

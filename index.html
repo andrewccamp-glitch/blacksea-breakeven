@@ -185,7 +185,6 @@
           <button class="toggle-btn" data-val="HANDC37">HANDC37</button>
           <button class="toggle-btn active" data-val="MR50">MR50</button>
           <button class="toggle-btn" data-val="LR1_75">LR1-75</button>
-          <button class="toggle-btn" data-val="LR2_115">LR2-115</button>
         </div>
       </div>
       <div>
@@ -481,8 +480,9 @@ function calcCompetitionTCE(openPos, routeCode, refDate) {
   var ladenDist = getDist(route.loadPort, route.dischPort);
   if (ladenDist == null) return null;
 
-  // Use route's standard cargo (FFA spec), not vessel intake
-  var cargo = route.cargo || getVessel().intake;
+  // Cargo from matrix: vessel-class specific per route
+  var cargoMatrix = D.cargoByRoute[state.vesselClass];
+  var cargo = (cargoMatrix && cargoMatrix[routeCode]) || getVessel().intake;
 
   var ballastToLoadDays = ballastDaysFromDist(ballastToLoad);
   var arrivalDate = addDays(refDate, ballastToLoadDays);
@@ -562,8 +562,9 @@ function calcNextVoyageTCE(fromPort, routeCode, departDate) {
   var ladenDist = getDist(route.loadPort, route.dischPort);
   if (ladenDist == null) return null;
 
-  // Use route's standard cargo (FFA spec), not vessel intake
-  var cargo = route.cargo || getVessel().intake;
+  // Cargo from matrix: vessel-class specific per route
+  var cargoMatrix = D.cargoByRoute[state.vesselClass];
+  var cargo = (cargoMatrix && cargoMatrix[routeCode]) || getVessel().intake;
 
   var b2lDays = ballastDaysFromDist(ballastToLoad);
   var arrivalDate = addDays(departDate, b2lDays);
