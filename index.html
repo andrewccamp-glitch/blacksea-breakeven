@@ -9,6 +9,7 @@
   <script src="https://andrewccamp-glitch.github.io/global-dashboard/freight-calculator/data.js"></script>
   <script src="https://andrewccamp-glitch.github.io/global-dashboard/freight-calculator/forward_curve_data.js"></script>
   <script src="https://andrewccamp-glitch.github.io/global-dashboard/freight-calculator/historical_data.js"></script>
+  <script src="https://andrewccamp-glitch.github.io/global-dashboard/freight-calculator/bunker_spot_data.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -254,7 +255,7 @@
         <div class="pos-selector" id="histPosSelector" style="margin-bottom:0;">
           <span style="font-size:10px;color:var(--text-dim);font-family:var(--font-mono);text-transform:uppercase;margin-right:4px;">Position:</span>
         </div>
-        <div>
+        <div id="histLookbackWrap">
           <span style="font-size:10px;color:var(--text-dim);font-family:var(--font-mono);text-transform:uppercase;margin-right:4px;">Lookback:</span>
           <div class="toggle-group" id="histLookbackToggle" style="display:inline-flex;">
             <button class="toggle-btn active" data-val="1">1Y</button>
@@ -263,6 +264,17 @@
             <button class="toggle-btn" data-val="0">All</button>
           </div>
         </div>
+        <div>
+          <span style="font-size:10px;color:var(--text-dim);font-family:var(--font-mono);text-transform:uppercase;margin-right:4px;">View:</span>
+          <div class="toggle-group" id="histViewToggle" style="display:inline-flex;">
+            <button class="toggle-btn active" data-val="continuous">Continuous</button>
+            <button class="toggle-btn" data-val="seasonal">Seasonal</button>
+          </div>
+        </div>
+      </div>
+      <div id="histYearSelector" style="display:none;margin-bottom:8px;">
+        <span style="font-size:10px;color:var(--text-dim);font-family:var(--font-mono);text-transform:uppercase;margin-right:4px;">Years:</span>
+        <span id="histYearChips" style="display:inline-flex;gap:4px;flex-wrap:wrap;"></span>
       </div>
       <div class="chart-container" style="height:400px;">
         <canvas id="histChart"></canvas>
@@ -293,7 +305,7 @@
       <div class="map-legend">
         <span><span class="map-legend-dot" style="background:#3d9a50;"></span> In range (rate &ge; breakeven)</span>
         <span><span class="map-legend-dot" style="background:#c04040;"></span> Out of range</span>
-        <span><span class="map-legend-dot" style="background:#c9a84c;"></span> Load port (Tuapse)</span>
+        <span><span class="map-legend-dot" style="background:#c9a84c;"></span> Load port (Odessa)</span>
       </div>
     </div>
   </div>
@@ -523,7 +535,14 @@ function calcCompetitionTCE(openPos, routeCode, refDate) {
 
   var totalDays = ballastToLoadDays + ladenDays + ballastBackDays + portDays + canalDays;
 
-  var gross = rate * cargo;
+  // Overage pricing: small-vessel routes (TC6, TC23) get discounted when larger vessels compete
+  var ovr = D.overageRoutes ? D.overageRoutes[routeCode] : null;
+  var gross;
+  if (ovr && cargo > ovr.baseCargo) {
+    gross = ovr.baseCargo * rate - ovr.overagePct * rate * (cargo - ovr.baseCargo);
+  } else {
+    gross = rate * cargo;
+  }
   var commission = (state.commissionPct / 100) * gross;
   var ladenBunker = ladenDays * state.ladenCons * voyVlsfo;
   var ballastBunker = (ballastToLoadDays + ballastBackDays) * state.ballastCons * voyVlsfo;
@@ -586,7 +605,14 @@ function calcNextVoyageTCE(fromPort, routeCode, departDate) {
 
   var totalDays = b2lDays + ladenDays + portDays + canalDays;
 
-  var gross = rate * cargo;
+  // Overage pricing for small-vessel routes
+  var ovr = D.overageRoutes ? D.overageRoutes[routeCode] : null;
+  var gross;
+  if (ovr && cargo > ovr.baseCargo) {
+    gross = ovr.baseCargo * rate - ovr.overagePct * rate * (cargo - ovr.baseCargo);
+  } else {
+    gross = rate * cargo;
+  }
   var commission = (state.commissionPct / 100) * gross;
   var ladenBunker = ladenDays * state.ladenCons * voyVlsfo;
   var ballastBunker = b2lDays * state.ballastCons * voyVlsfo;
@@ -662,15 +688,15 @@ function calcBSIndiaTCE(openPos, rate, refDate) {
   var voy = D.bsIndiaVoyage;
   var dischOpt = voy.dischOptions[state.dischRegion];
   var ports = dischOpt.ports;
-  var loadPort1 = voy.loadPorts[0].name;  // Tuapse
-  var loadPort2 = voy.loadPorts[1].name;  // Taman
+  var loadPort1 = voy.loadPorts[0].name;  // Odessa
+  var loadPort2 = voy.loadPorts.length > 1 ? voy.loadPorts[1].name : null;
 
-  // Ballast from opening to Tuapse
+  // Ballast from opening to load port
   var b2tDist = getDist(openPos, loadPort1);
   if (b2tDist == null) return null;
   var b2tDays = ballastDaysFromDist(b2tDist);
 
-  // Bosphorus + Suez costs for ballast to Tuapse (non-Black Sea positions)
+  // Bosphorus + Suez costs for ballast to load port (non-Black Sea positions)
   var ballastCanalDays = 0, ballastCanalCost = 0;
   if (isBosphorusLeg(openPos, loadPort1)) {
     ballastCanalDays += D.canalCosts.bosphorus_days;
@@ -690,15 +716,19 @@ function calcBSIndiaTCE(openPos, rate, refDate) {
   // River transit (0 for Black Sea)
   var riverUpDays = getVessel().riverDays;
 
-  // Tuapse → Taman (coastal laden hop)
-  var t2tDist = getDist(loadPort1, loadPort2);
-  var t2tDays = t2tDist ? ladenDaysFromDist(t2tDist) : 0;
+  // Coastal hop between load ports (if 2 ports)
+  var t2tDays = 0;
+  if (loadPort2) {
+    var t2tDist = getDist(loadPort1, loadPort2);
+    t2tDays = t2tDist ? ladenDaysFromDist(t2tDist) : 0;
+  }
 
   // River transit down (0 for Black Sea)
   var riverDownDays = getVessel().riverDays;
 
-  // Taman → first discharge port (via Bosphorus + Suez — laden transit costs)
-  var l2d1Dist = getDist(loadPort2, ports[0]);
+  // Last load port → first discharge port (via Bosphorus + Suez — laden transit costs)
+  var lastLoadPort = loadPort2 || loadPort1;
+  var l2d1Dist = getDist(lastLoadPort, ports[0]);
   var l2d1Days = l2d1Dist ? ladenDaysFromDist(l2d1Dist) : 0;
 
   // Laden transit costs (Bosphorus + Suez for exiting Black Sea to India)
@@ -719,9 +749,7 @@ function calcBSIndiaTCE(openPos, rate, refDate) {
   var d1d2Dist = getDist(ports[0], ports[1]);
   var d1d2Days = d1d2Dist ? ladenDaysFromDist(d1d2Dist) : 0;
 
-  // Ballast from last discharge port to AG
-  var d2agDist = getDist(ports[1], voy.ballastAfter);
-  var d2agDays = d2agDist ? ballastDaysFromDist(d2agDist) : 0;
+  // No forced ballast-back — next voyage handles repositioning from discharge port
 
   // Cleaning: 1 before load, 1 after discharge
   var totalCleanDays = state.cleaningDays * 2;
@@ -734,7 +762,7 @@ function calcBSIndiaTCE(openPos, rate, refDate) {
 
   // Sea days
   var totalLadenDays = t2tDays + l2d1Days + d1d2Days;
-  var totalBallastDays = b2tDays + d2agDays;
+  var totalBallastDays = b2tDays;  // ballast to load only (no forced reposition after discharge)
   var totalRiverDays = riverUpDays + riverDownDays;
   var totalCanalDays = ballastCanalDays + ladenTransitDays;
 
@@ -751,8 +779,10 @@ function calcBSIndiaTCE(openPos, rate, refDate) {
   var portBunkerDisch = dischPortDays * state.portConsDisch * voyVlsfo;
   var totalBunker = ladenBunker + ballastBunker + portBunkerLoad + portBunkerDisch;
 
-  // Port costs: 4 port calls
-  var portCosts = getPC(loadPort1) + getPC(loadPort2) + getPC(ports[0]) + getPC(ports[1]);
+  // Port costs: load port(s) + discharge ports
+  var portCosts = getPC(loadPort1);
+  if (loadPort2) portCosts += getPC(loadPort2);
+  portCosts += getPC(ports[0]) + getPC(ports[1]);
 
   // Total canal costs (ballast + laden transit)
   var totalTransitCost = ballastCanalCost + ladenTransitCost;
@@ -764,11 +794,12 @@ function calcBSIndiaTCE(openPos, rate, refDate) {
   // End date for next voyage chaining
   var endDate = addDays(arrivalLoad, totalDays - b2tDays - ballastCanalDays);
 
-  // Next voyage from AG (pick best of TC17, TC5, TC12)
+  // Next voyage from last discharge port — evaluate ALL routes, pick best
+  var lastDischPort = ports[ports.length - 1];
   var nextVoy = null;
   if (state.nextVoyage) {
-    voy.nextVoyageOptions.forEach(function(nvCode) {
-      var nv = calcNextVoyageTCE(voy.ballastAfter, nvCode, endDate);
+    Object.keys(D.routes).forEach(function(nvCode) {
+      var nv = calcNextVoyageTCE(lastDischPort, nvCode, endDate);
       if (nv && (!nextVoy || nv.tce > nextVoy.tce)) nextVoy = nv;
     });
     if (nextVoy) {
@@ -932,7 +963,7 @@ function showDrillDown(pos) {
   html += '<tr><td>Gross Revenue</td><td class="num-right">$' + fmtN(bs.gross) + '</td></tr>';
   html += '<tr><td>Commission (' + state.commissionPct + '%)</td><td class="num-right">-$' + fmtN(bs.commission) + '</td></tr>';
   html += '<tr class="section-row"><td>Voyage Days</td><td class="num-right">' + fmtD(bs.totalDays, 1) + '</td></tr>';
-  html += '<tr><td>  Ballast to Tuapse</td><td class="num-right">' + fmtD(bs.ballastDays, 1) + ' days</td></tr>';
+  html += '<tr><td>  Ballast to ' + D.bsIndiaVoyage.loadPorts[0].name + '</td><td class="num-right">' + fmtD(bs.ballastDays, 1) + ' days</td></tr>';
   if (bs.canalDays > 0) html += '<tr><td>  Canal transit (Bosphorus/Suez)</td><td class="num-right">' + fmtD(bs.canalDays, 1) + ' days</td></tr>';
   html += '<tr><td>  Laden sea days</td><td class="num-right">' + fmtD(bs.ladenDays, 1) + ' days</td></tr>';
   html += '<tr><td>  Port days (load+disch)</td><td class="num-right">' + fmtD(bs.portDaysTotal, 1) + ' days (Load: ' + fmtD(state.loadDays * 24, 0) + 'h | Disch: ' + fmtD(state.dischDays * 24, 0) + 'h)</td></tr>';
@@ -940,7 +971,8 @@ function showDrillDown(pos) {
   html += '<tr><td>  Ballast to AG</td><td class="num-right">(incl. in ballast)</td></tr>';
   html += '<tr class="section-row"><td>Costs</td><td class="num-right"></td></tr>';
   html += '<tr><td>  Bunker</td><td class="num-right">$' + fmtN(bs.bunkerCost) + '</td></tr>';
-  html += '<tr><td>  Port costs (4 calls)</td><td class="num-right">$' + fmtN(bs.portCosts) + '</td></tr>';
+  var numCalls = D.bsIndiaVoyage.loadPorts.length + 2;
+  html += '<tr><td>  Port costs (' + numCalls + ' calls)</td><td class="num-right">$' + fmtN(bs.portCosts) + '</td></tr>';
   html += '<tr><td>  Tank cleaning (&times;2)</td><td class="num-right">$' + fmtN(bs.cleanCost) + '</td></tr>';
   if (bs.transitCost > 0) html += '<tr><td>  Transit costs (Bosphorus+Suez)</td><td class="num-right">$' + fmtN(bs.transitCost) + '</td></tr>';
   html += '<tr class="section-row"><td>BS&rarr;India TCE</td><td class="num-right" style="color:var(--green);">$' + fmtN(bs.tce) + '/day</td></tr>';
@@ -1153,6 +1185,8 @@ function renderForwardBreakevens() {
 var histChart = null;
 var histPositions = { Average: true, Constanta: false, Piraeus: false, Augusta: false, Fujairah: false };
 var histLookbackYears = 1;
+var histViewMode = 'continuous'; // 'continuous' | 'seasonal'
+var histYearSelection = {};      // { 2023: true, 2024: true, ... } — populated lazily from data
 var AVG_COMPONENTS = ['Constanta', 'Istanbul', 'Augusta', 'Piraeus'];
 
 function calcHistoricalBreakevens() {
@@ -1183,10 +1217,11 @@ function calcHistoricalBreakevens() {
     return bunkerLookup[dt] && bunkerLookup[dt].VLSFO && bunkerLookup[dt].LSMGO;
   }).sort();
 
-  // Apply lookback filter
-  if (histLookbackYears > 0) {
+  // Apply lookback filter (suppressed in seasonal mode — year selector handles filtering)
+  var effectiveLookback = histViewMode === 'seasonal' ? 0 : histLookbackYears;
+  if (effectiveLookback > 0) {
     var cutoff = new Date();
-    cutoff.setFullYear(cutoff.getFullYear() - histLookbackYears);
+    cutoff.setFullYear(cutoff.getFullYear() - effectiveLookback);
     var cutoffStr = cutoff.toISOString().slice(0, 10);
     allDates = allDates.filter(function(dt) { return dt >= cutoffStr; });
   }
@@ -1358,6 +1393,10 @@ function calcHistoricalBreakevens() {
 }
 
 function renderHistChart(results, fwdResults, positions) {
+  if (histViewMode === 'seasonal') {
+    renderSeasonalHistChart(results, positions);
+    return;
+  }
   var posColors = { Constanta: '#c9a84c', Istanbul: '#d4a833', Piraeus: '#3d9a50', Augusta: '#c04040', Fujairah: '#e67e22', Average: '#b06ccf' };
 
   var datasets = [];
@@ -1455,6 +1494,127 @@ function renderHistChart(results, fwdResults, positions) {
   });
 }
 
+// Seasonal view: x-axis = month/day, one line per year, single position only.
+function renderSeasonalHistChart(results, positions) {
+  var pos = positions.indexOf('Average') >= 0 ? 'Average' : positions[0];
+  if (!pos || !results[pos]) {
+    if (histChart) { histChart.destroy(); histChart = null; }
+    return;
+  }
+
+  var byYear = {};
+  results[pos].forEach(function(r) {
+    if (r.breakeven == null) return;
+    var year = parseInt(r.date.slice(0, 4), 10);
+    if (!byYear[year]) byYear[year] = [];
+    byYear[year].push({ x: '2000-' + r.date.slice(5), y: r.breakeven, origDate: r.date });
+  });
+
+  var allYears = Object.keys(byYear).map(Number).sort(function(a, b) { return a - b; });
+  allYears.forEach(function(y) { if (!(y in histYearSelection)) histYearSelection[y] = true; });
+  renderHistYearChips(allYears);
+
+  var thisYear = new Date().getFullYear();
+  var datasets = [];
+  allYears.forEach(function(year, idx) {
+    if (!histYearSelection[year]) return;
+    var hue = Math.round((idx * 360 / Math.max(allYears.length, 1)) % 360);
+    var color = 'hsl(' + hue + ', 65%, 60%)';
+    var isCurrent = (year === thisYear);
+    datasets.push({
+      label: String(year),
+      data: byYear[year].sort(function(a, b) { return a.x < b.x ? -1 : 1; }),
+      borderColor: isCurrent ? '#c9a84c' : color,
+      backgroundColor: (isCurrent ? '#c9a84c' : color) + '22',
+      borderWidth: isCurrent ? 2.8 : 1.3,
+      pointRadius: 0,
+      pointHitRadius: 8,
+      tension: 0.25,
+      order: isCurrent ? 0 : 1,
+    });
+  });
+
+  if (histChart) histChart.destroy();
+  histChart = new Chart(document.getElementById('histChart'), {
+    type: 'line',
+    data: { datasets: datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: {
+            color: '#c8c8cc',
+            font: { family: "'IBM Plex Mono', monospace", size: 10 },
+          }
+        },
+        tooltip: {
+          mode: 'nearest', intersect: false,
+          backgroundColor: '#1a1a1d', borderColor: '#2a2a2e', borderWidth: 1,
+          titleFont: { family: "'IBM Plex Mono', monospace", size: 11 },
+          bodyFont: { family: "'IBM Plex Mono', monospace", size: 11 },
+          callbacks: {
+            title: function(items) {
+              if (!items.length) return '';
+              var raw = items[0].raw;
+              var parts = (raw.origDate || '').split('-');
+              if (parts.length !== 3) return raw.origDate || '';
+              var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+              return parts[2] + ' ' + months[parseInt(parts[1], 10) - 1] + ' ' + parts[0];
+            },
+            label: function(ctx) {
+              return ctx.dataset.label + ': $' + fmtD(ctx.parsed.y, 1) + '/mt';
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'time',
+          time: { unit: 'month', displayFormats: { month: 'MMM' } },
+          min: '2000-01-01',
+          max: '2000-12-31',
+          ticks: { color: '#c8c8cc', font: { family: "'IBM Plex Mono', monospace", size: 10 } },
+          grid: { color: 'rgba(42,42,46,0.3)' },
+        },
+        y: {
+          ticks: { color: '#6e6e76', font: { family: "'IBM Plex Mono', monospace", size: 10 }, callback: function(v) { return '$' + v; } },
+          grid: { color: 'rgba(42,42,46,0.5)' },
+        },
+      },
+      animation: { duration: 300 },
+    }
+  });
+}
+
+function renderHistYearChips(years) {
+  var container = document.getElementById('histYearChips');
+  if (!container) return;
+  var key = years.join(',');
+  if (container.dataset.years === key) {
+    Array.prototype.forEach.call(container.children, function(chip) {
+      var y = parseInt(chip.dataset.year, 10);
+      chip.classList.toggle('active', !!histYearSelection[y]);
+    });
+    return;
+  }
+  container.dataset.years = key;
+  container.innerHTML = '';
+  years.forEach(function(y) {
+    var chip = document.createElement('button');
+    chip.className = 'pos-chip' + (histYearSelection[y] !== false ? ' active' : '');
+    chip.textContent = String(y);
+    chip.dataset.year = String(y);
+    chip.addEventListener('click', function() {
+      histYearSelection[y] = !histYearSelection[y];
+      chip.classList.toggle('active');
+      var any = years.some(function(yy) { return histYearSelection[yy]; });
+      if (!any) { histYearSelection[y] = true; chip.classList.add('active'); }
+      calcHistoricalBreakevens();
+    });
+    container.appendChild(chip);
+  });
+}
+
 // ── CSV Export ──
 function exportCSV() {
   var positions = ['Average'].concat(Object.keys(D.openingPositions));
@@ -1493,7 +1653,7 @@ var mapPeriod = 'spot';
 var mapPeriodMonths = [];
 
 var PORT_COORDS = {
-  'Tuapse':       [44.1, 39.07],
+  'Odessa':       [46.48, 30.74],
   // Black Sea
   'Constanta':    [44.18, 28.65],
   'Istanbul':     [41.0, 29.0],
@@ -1528,10 +1688,11 @@ function initRangeMap() {
     maxZoom: 18,
   }).addTo(rangeMap);
 
-  // Load port marker (Tuapse)
-  L.circleMarker(PORT_COORDS['Tuapse'], {
+  // Load port marker (Odessa)
+  var lp = D.bsIndiaVoyage.loadPorts[0].name;
+  L.circleMarker(PORT_COORDS[lp], {
     radius: 8, fillColor: '#c9a84c', color: '#c9a84c', weight: 2, opacity: 1, fillOpacity: 0.7,
-  }).bindTooltip('Tuapse (Load Port)', { permanent: false, className: 'map-tooltip' }).addTo(rangeMap);
+  }).bindTooltip(lp + ' (Load Port)', { permanent: false, className: 'map-tooltip' }).addTo(rangeMap);
 
   setTimeout(function() { rangeMap.invalidateSize(); }, 100);
 }
@@ -1606,7 +1767,7 @@ function updateRangeMap() {
     rangeMarkers.push(marker);
 
     if (r.inRange) {
-      var line = L.polyline([PORT_COORDS['Tuapse'], r.coords], {
+      var line = L.polyline([PORT_COORDS[D.bsIndiaVoyage.loadPorts[0].name], r.coords], {
         color: '#3d9a5080', weight: 1.5, dashArray: '6,4',
       }).addTo(rangeMap);
       rangeLines.push(line);
@@ -1696,8 +1857,9 @@ function renderAssumptions(sub) {
     var voy = D.bsIndiaVoyage;
     html += '<div class="assume-section">BS\u2192India Voyage Structure</div>';
     html += '<table class="assume-table" style="max-width:600px;"><tbody>';
-    html += '<tr><td>Load Port 1</td><td class="num">' + voy.loadPorts[0].name + ' \u2014 ' + fmtN(voy.loadPorts[0].cargo) + ' mt</td></tr>';
-    html += '<tr><td>Load Port 2</td><td class="num">' + voy.loadPorts[1].name + ' \u2014 ' + fmtN(voy.loadPorts[1].cargo) + ' mt</td></tr>';
+    voy.loadPorts.forEach(function(lp, i) {
+      html += '<tr><td>Load Port' + (voy.loadPorts.length > 1 ? ' ' + (i+1) : '') + '</td><td class="num">' + lp.name + ' \u2014 ' + fmtN(lp.cargo) + ' mt</td></tr>';
+    });
     html += '<tr><td>Total Cargo (' + getVessel().name.split(' ')[0] + ')</td><td class="num">' + fmtN(state.cargoSAIndia) + ' mt</td></tr>';
     html += '<tr><td>Loading Laytime</td><td class="num">' + fmtD(state.loadDays * 24, 1) + ' hours (' + fmtD(state.loadDays, 1) + ' days)</td></tr>';
     html += '<tr><td>Discharge Laytime</td><td class="num">' + fmtD(state.dischDays * 24, 1) + ' hours (' + fmtD(state.dischDays, 1) + ' days)</td></tr>';
@@ -1738,15 +1900,18 @@ function renderAssumptions(sub) {
 
     html += '<div class="assume-section">Laden \u2014 BS\u2192India</div>';
     html += '<table class="assume-table"><thead><tr><th>Leg</th><th class="num">Distance (nm)</th></tr></thead><tbody>';
-    var ladenLegs = [
-      ['Tuapse \u2192 Taman', 'Tuapse|Taman'],
-      ['Taman \u2192 Mundra (WCI)', 'Taman|Mundra'],
-      ['Taman \u2192 Kandla (WCI)', 'Taman|Kandla'],
-      ['Taman \u2192 Chennai (ECI)', 'Taman|Chennai'],
-      ['Taman \u2192 Haldia (ECI)', 'Taman|Haldia'],
+    var lp = D.bsIndiaVoyage.loadPorts;
+    var lastLP = lp[lp.length - 1].name;
+    var ladenLegs = [];
+    if (lp.length > 1) ladenLegs.push([lp[0].name + ' \u2192 ' + lp[1].name, lp[0].name + '|' + lp[1].name]);
+    ladenLegs = ladenLegs.concat([
+      [lastLP + ' \u2192 Mundra (WCI)', lastLP + '|Mundra'],
+      [lastLP + ' \u2192 Kandla (WCI)', lastLP + '|Kandla'],
+      [lastLP + ' \u2192 Chennai (ECI)', lastLP + '|Chennai'],
+      [lastLP + ' \u2192 Haldia (ECI)', lastLP + '|Haldia'],
       ['Mundra \u2192 Kandla', 'Mundra|Kandla'],
       ['Chennai \u2192 Haldia', 'Chennai|Haldia'],
-    ];
+    ]);
     ladenLegs.forEach(function(l) {
       var d = D.distances[l[1]]; if (d == null) { var rev = l[1].split('|').reverse().join('|'); d = D.distances[rev]; }
       html += '<tr><td>' + l[0] + '</td><td class="num">' + (d != null ? fmtN(d) : '-') + '</td></tr>';
@@ -1888,6 +2053,18 @@ function renderAssumptions(sub) {
       });
       html += '</tbody></table></div>';
     }
+
+    if (typeof BUNKER_SPOT !== 'undefined' && BUNKER_SPOT.ports) {
+      html += '<div class="assume-section">Ship&Bunker Spot Prices (as of ' + BUNKER_SPOT.date + ')</div>';
+      html += '<div style="overflow-x:auto;"><table class="assume-table"><thead><tr><th>Port</th><th class="num">VLSFO</th><th class="num">MGO</th><th class="num">IFO380</th></tr></thead><tbody>';
+      BUNKER_SPOT.ports.forEach(function(p) {
+        html += '<tr><td>' + p.name + '</td>';
+        html += '<td class="num">' + (p.vlsfo != null ? '$' + fmtD(p.vlsfo, 0) : '-') + '</td>';
+        html += '<td class="num">' + (p.mgo != null ? '$' + fmtD(p.mgo, 0) : '-') + '</td>';
+        html += '<td class="num">' + (p.ifo380 != null ? '$' + fmtD(p.ifo380, 0) : '-') + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    }
   }
 
   else if (currentAssumeSub === 'routes') {
@@ -1923,7 +2100,7 @@ function renderAssumptions(sub) {
 
 function getPortRegion(port) {
   if (D.openingPositions[port]) return D.openingPositions[port].region;
-  var regionMap = { 'Tuapse': 'Russia', 'Taman': 'Russia', 'Mundra': 'India WC', 'Kandla': 'India WC', 'Chennai': 'India EC', 'Haldia': 'India EC', 'Ras Tanura': 'Saudi Arabia', 'Amsterdam': 'Netherlands', 'Skikda': 'Algeria', 'Lavera': 'France', 'Yokohama': 'Japan', 'Dar es Salaam': 'Tanzania', 'Houston': 'US Gulf', 'New York': 'US Atlantic', 'Rotterdam': 'Netherlands' };
+  var regionMap = { 'Odessa': 'Ukraine', 'Mundra': 'India WC', 'Kandla': 'India WC', 'Chennai': 'India EC', 'Haldia': 'India EC', 'Ras Tanura': 'Saudi Arabia', 'Amsterdam': 'Netherlands', 'Skikda': 'Algeria', 'Lavera': 'France', 'Yokohama': 'Japan', 'Dar es Salaam': 'Tanzania', 'Houston': 'US Gulf', 'New York': 'US Atlantic', 'Rotterdam': 'Netherlands' };
   return regionMap[port] || '';
 }
 
@@ -2109,6 +2286,20 @@ function init() {
       document.querySelectorAll('#histLookbackToggle .toggle-btn').forEach(function(b) { b.classList.remove('active'); });
       btn.classList.add('active');
       histLookbackYears = parseInt(btn.dataset.val);
+      calcHistoricalBreakevens();
+    });
+  });
+
+  // View toggle (Continuous vs Seasonal)
+  document.querySelectorAll('#histViewToggle .toggle-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('#histViewToggle .toggle-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      histViewMode = btn.dataset.val;
+      var lookbackWrap = document.getElementById('histLookbackWrap');
+      var yearSel = document.getElementById('histYearSelector');
+      if (lookbackWrap) lookbackWrap.style.display = histViewMode === 'seasonal' ? 'none' : '';
+      if (yearSel) yearSel.style.display = histViewMode === 'seasonal' ? '' : 'none';
       calcHistoricalBreakevens();
     });
   });
