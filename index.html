@@ -1217,11 +1217,18 @@ function calcHistoricalBreakevens() {
     return bunkerLookup[dt] && bunkerLookup[dt].VLSFO && bunkerLookup[dt].LSMGO;
   }).sort();
 
-  // Apply lookback filter (suppressed in seasonal mode — year selector handles filtering)
-  var effectiveLookback = histViewMode === 'seasonal' ? 0 : histLookbackYears;
-  if (effectiveLookback > 0) {
+  // Compute always covers >=5Y so the 5Y average overlay has data to draw from.
+  // Lookback acts as a display filter in continuous mode (applied during render).
+  // Seasonal mode shows all years; year-chip selector handles per-year filtering there.
+  var computeYears;
+  if (histViewMode === 'seasonal' || histLookbackYears === 0) {
+    computeYears = 0;
+  } else {
+    computeYears = Math.max(histLookbackYears, 5);
+  }
+  if (computeYears > 0) {
     var cutoff = new Date();
-    cutoff.setFullYear(cutoff.getFullYear() - effectiveLookback);
+    cutoff.setFullYear(cutoff.getFullYear() - computeYears);
     var cutoffStr = cutoff.toISOString().slice(0, 10);
     allDates = allDates.filter(function(dt) { return dt >= cutoffStr; });
   }
@@ -1399,12 +1406,25 @@ function renderHistChart(results, fwdResults, positions) {
   }
   var posColors = { Constanta: '#c9a84c', Istanbul: '#d4a833', Piraeus: '#3d9a50', Augusta: '#c04040', Fujairah: '#e67e22', Average: '#b06ccf' };
 
+  // Display-time lookback filter (compute always covers >=5Y)
+  var displayCutoff = null;
+  if (histLookbackYears > 0) {
+    var dc = new Date();
+    dc.setFullYear(dc.getFullYear() - histLookbackYears);
+    displayCutoff = dc.toISOString().slice(0, 10);
+  }
+  function inDisplayRange(r) {
+    if (r.breakeven == null) return false;
+    if (displayCutoff && r.date < displayCutoff) return false;
+    return true;
+  }
+
   var datasets = [];
   positions.forEach(function(pos) {
     var color = posColors[pos] || '#c8c8cc';
     var isAvg = pos === 'Average';
     // Historical (solid)
-    var data = results[pos].filter(function(r) { return r.breakeven != null; });
+    var data = results[pos].filter(inDisplayRange);
     datasets.push({
       label: pos,
       data: data.map(function(r) { return { x: r.date, y: r.breakeven }; }),
@@ -1438,6 +1458,37 @@ function renderHistChart(results, fwdResults, positions) {
       }
     }
   });
+
+  // 5Y average horizontal reference line (uses last 5Y of breakevens for the reference position).
+  var refPos5y = positions.indexOf('Average') >= 0 ? 'Average' : positions[0];
+  if (refPos5y && results[refPos5y]) {
+    var fiveYrAgo = new Date();
+    fiveYrAgo.setFullYear(fiveYrAgo.getFullYear() - 5);
+    var fiveYrCutoff = fiveYrAgo.toISOString().slice(0, 10);
+    var data5y = results[refPos5y].filter(function(r) {
+      return r.breakeven != null && r.date >= fiveYrCutoff;
+    });
+    if (data5y.length > 0) {
+      var avg5y = data5y.reduce(function(s, r) { return s + r.breakeven; }, 0) / data5y.length;
+      var displayedHist = results[refPos5y].filter(inDisplayRange);
+      if (displayedHist.length > 0) {
+        var minDt = displayedHist[0].date;
+        var maxDt = displayedHist[displayedHist.length - 1].date;
+        datasets.push({
+          label: '5Y Avg ($' + fmtD(avg5y, 1) + ')',
+          data: [{ x: minDt, y: avg5y }, { x: maxDt, y: avg5y }],
+          borderColor: '#dc2626',
+          backgroundColor: '#dc262600',
+          borderWidth: 3,
+          pointRadius: 0,
+          pointHitRadius: 0,
+          tension: 0,
+          fill: false,
+          order: -1,
+        });
+      }
+    }
+  }
 
   if (histChart) histChart.destroy();
   histChart = new Chart(document.getElementById('histChart'), {
@@ -1578,6 +1629,40 @@ function renderSeasonalHistChart(results, fwdResults, positions) {
       });
     }
   });
+
+  // 5Y average curve (per day-of-year, last 5 calendar years of historical data).
+  if (hasHist) {
+    var fiveYrAgo = new Date();
+    fiveYrAgo.setFullYear(fiveYrAgo.getFullYear() - 5);
+    var fiveYrCutoff = fiveYrAgo.toISOString().slice(0, 10);
+    var byDay = {};
+    results[pos].forEach(function(r) {
+      if (r.breakeven == null || r.date < fiveYrCutoff) return;
+      var dayKey = '2000-' + r.date.slice(5);
+      if (!byDay[dayKey]) byDay[dayKey] = [];
+      byDay[dayKey].push(r.breakeven);
+    });
+    var avgPoints = Object.keys(byDay).sort().map(function(dayKey) {
+      var values = byDay[dayKey];
+      var sum = 0;
+      for (var i = 0; i < values.length; i++) sum += values[i];
+      return { x: dayKey, y: sum / values.length, origDate: '5Y Avg ' + dayKey.slice(5) };
+    });
+    if (avgPoints.length > 0) {
+      datasets.push({
+        label: '5Y Avg',
+        data: avgPoints,
+        borderColor: '#dc2626',
+        backgroundColor: '#dc262600',
+        borderWidth: 3,
+        pointRadius: 0,
+        pointHitRadius: 8,
+        tension: 0.25,
+        order: -1,
+        fill: false,
+      });
+    }
+  }
 
   if (histChart) histChart.destroy();
   histChart = new Chart(document.getElementById('histChart'), {
