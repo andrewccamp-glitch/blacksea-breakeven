@@ -1394,7 +1394,7 @@ function calcHistoricalBreakevens() {
 
 function renderHistChart(results, fwdResults, positions) {
   if (histViewMode === 'seasonal') {
-    renderSeasonalHistChart(results, positions);
+    renderSeasonalHistChart(results, fwdResults, positions);
     return;
   }
   var posColors = { Constanta: '#c9a84c', Istanbul: '#d4a833', Piraeus: '#3d9a50', Augusta: '#c04040', Fujairah: '#e67e22', Average: '#b06ccf' };
@@ -1495,22 +1495,36 @@ function renderHistChart(results, fwdResults, positions) {
 }
 
 // Seasonal view: x-axis = month/day, one line per year, single position only.
-function renderSeasonalHistChart(results, positions) {
+function renderSeasonalHistChart(results, fwdResults, positions) {
   var pos = positions.indexOf('Average') >= 0 ? 'Average' : positions[0];
-  if (!pos || !results[pos]) {
+  var hasHist = pos && results[pos] && results[pos].length > 0;
+  var hasFwd = pos && fwdResults && fwdResults[pos] && fwdResults[pos].length > 0;
+  if (!pos || (!hasHist && !hasFwd)) {
     if (histChart) { histChart.destroy(); histChart = null; }
     return;
   }
 
-  var byYear = {};
-  results[pos].forEach(function(r) {
-    if (r.breakeven == null) return;
-    var year = parseInt(r.date.slice(0, 4), 10);
-    if (!byYear[year]) byYear[year] = [];
-    byYear[year].push({ x: '2000-' + r.date.slice(5), y: r.breakeven, origDate: r.date });
-  });
+  function groupByYear(rows) {
+    var by = {};
+    rows.forEach(function(r) {
+      if (r.breakeven == null) return;
+      var year = parseInt(r.date.slice(0, 4), 10);
+      if (!by[year]) by[year] = [];
+      by[year].push({ x: '2000-' + r.date.slice(5), y: r.breakeven, origDate: r.date });
+    });
+    Object.keys(by).forEach(function(y) {
+      by[y].sort(function(a, b) { return a.x < b.x ? -1 : 1; });
+    });
+    return by;
+  }
+  var histByYear = hasHist ? groupByYear(results[pos]) : {};
+  var fwdByYear = hasFwd ? groupByYear(fwdResults[pos]) : {};
 
-  var allYears = Object.keys(byYear).map(Number).sort(function(a, b) { return a - b; });
+  var yearSet = {};
+  Object.keys(histByYear).forEach(function(y) { yearSet[y] = true; });
+  Object.keys(fwdByYear).forEach(function(y) { yearSet[y] = true; });
+  var allYears = Object.keys(yearSet).map(Number).sort(function(a, b) { return a - b; });
+
   allYears.forEach(function(y) { if (!(y in histYearSelection)) histYearSelection[y] = true; });
   renderHistYearChips(allYears);
 
@@ -1519,19 +1533,50 @@ function renderSeasonalHistChart(results, positions) {
   allYears.forEach(function(year, idx) {
     if (!histYearSelection[year]) return;
     var hue = Math.round((idx * 360 / Math.max(allYears.length, 1)) % 360);
-    var color = 'hsl(' + hue + ', 65%, 60%)';
+    var baseColor = 'hsl(' + hue + ', 65%, 60%)';
     var isCurrent = (year === thisYear);
-    datasets.push({
-      label: String(year),
-      data: byYear[year].sort(function(a, b) { return a.x < b.x ? -1 : 1; }),
-      borderColor: isCurrent ? '#c9a84c' : color,
-      backgroundColor: (isCurrent ? '#c9a84c' : color) + '22',
-      borderWidth: isCurrent ? 2.8 : 1.3,
-      pointRadius: 0,
-      pointHitRadius: 8,
-      tension: 0.25,
-      order: isCurrent ? 0 : 1,
-    });
+    var color = isCurrent ? '#c9a84c' : baseColor;
+    var lineWidth = isCurrent ? 2.8 : 1.3;
+    var yearHasHist = !!histByYear[year];
+    var yearHasFwd = !!fwdByYear[year];
+
+    if (yearHasHist) {
+      datasets.push({
+        label: String(year),
+        data: histByYear[year],
+        borderColor: color,
+        backgroundColor: color + '22',
+        borderWidth: lineWidth,
+        pointRadius: 0,
+        pointHitRadius: 8,
+        tension: 0.25,
+        order: isCurrent ? 0 : 1,
+      });
+    }
+    if (yearHasFwd) {
+      var fwdData = fwdByYear[year];
+      if (yearHasHist) {
+        var lastHist = histByYear[year][histByYear[year].length - 1];
+        if (lastHist && fwdData[0] && lastHist.x !== fwdData[0].x) {
+          fwdData = [lastHist].concat(fwdData);
+        }
+      }
+      datasets.push({
+        label: String(year) + ' (fwd)',
+        data: fwdData,
+        borderColor: color,
+        backgroundColor: color + '1a',
+        borderWidth: lineWidth,
+        borderDash: [6, 4],
+        pointRadius: isCurrent ? 4 : 3,
+        pointBackgroundColor: color,
+        pointBorderColor: color,
+        pointHitRadius: 8,
+        tension: 0.3,
+        order: isCurrent ? 0 : 1,
+        legendHidden: yearHasHist,
+      });
+    }
   });
 
   if (histChart) histChart.destroy();
@@ -1545,6 +1590,9 @@ function renderSeasonalHistChart(results, positions) {
           labels: {
             color: '#c8c8cc',
             font: { family: "'IBM Plex Mono', monospace", size: 10 },
+            filter: function(item, data) {
+              return !data.datasets[item.datasetIndex].legendHidden;
+            }
           }
         },
         tooltip: {
