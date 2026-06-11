@@ -1,36 +1,65 @@
 // Black Sea East Breakeven Tool — Data Layer
-// Generated 2026-03-09
+// GENERATED FILE — do not edit by hand.
+// Source of truth: Andrew/breakeven_shared/ (shared_config.py + blacksea_config.py)
+// Rebuild with:    python Andrew/breakeven_shared/build_data_js.py
 
 const BS_DATA = {
 
   // ── Vessel Class Definitions ──
   vesselClasses: {
     HANDC37: {
-      name: "HANDC37 (Baltic Clean Handy)", dwt: 37800, intake: 33000,
+      name: "HANDC37 (Baltic Clean Handy)",
+      dwt: 37800,
+      intake: 33000,
       cargoBSIndia: 33000,
-      ladenSpeed: 13.0, ballastSpeed: 12.0,
-      ladenCons: 21.3, ballastCons: 16.8,
-      portConsLoad: 5.0, portConsDisch: 20.0, portConsWait: 5.0,
-      commissionPct: 3.75, seaMargin: 1.05,
-      riverDays: 0, cleaningCost: 25000, cleaningDays: 1.0,
+      ladenSpeed: 13.0,
+      ballastSpeed: 12.0,
+      ladenCons: 21.3,
+      ballastCons: 16.8,
+      portConsLoad: 5.0,
+      portConsDisch: 20.0,
+      portConsWait: 5.0,
+      commissionPct: 3.75,
+      seaMargin: 1.05,
+      riverDays: 0,
+      cleaningCost: 25000,
+      cleaningDays: 1.0,
     },
     MR50: {
-      name: "MR50 (Baltic Standard MR)", dwt: 50000, intake: 44000,
-      cargoBSIndia: 40000,        // draft-restricted at BS/SA load ports
-      ladenSpeed: 13.0, ballastSpeed: 12.0,
-      ladenCons: 23.3, ballastCons: 17.0,
-      portConsLoad: 5.0, portConsDisch: 25.0, portConsWait: 5.0,
-      commissionPct: 3.75, seaMargin: 1.05,
-      riverDays: 0, cleaningCost: 25000, cleaningDays: 1.0,
+      name: "MR50 (Baltic Standard MR)",
+      dwt: 50000,
+      intake: 44000,
+      cargoBSIndia: 40000,
+      ladenSpeed: 13.0,
+      ballastSpeed: 12.0,
+      ladenCons: 23.3,
+      ballastCons: 17.0,
+      portConsLoad: 5.0,
+      portConsDisch: 25.0,
+      portConsWait: 5.0,
+      commissionPct: 3.75,
+      seaMargin: 1.05,
+      riverDays: 0,
+      cleaningCost: 25000,
+      cleaningDays: 2.0,
     },
     LR1_75: {
-      name: "LR1-75 (Baltic Standard LR1)", dwt: 74000, intake: 65000,
-      cargoBSIndia: 65000,        // wider beam allows more on same draft
-      ladenSpeed: 13.0, ballastSpeed: 12.0,
-      ladenCons: 30.5, ballastCons: 24.5,
-      portConsLoad: 5.0, portConsDisch: 32.0, portConsWait: 5.0,
-      commissionPct: 3.75, seaMargin: 1.05,
-      riverDays: 0, cleaningCost: 25000, cleaningDays: 1.0,
+      name: "LR1-75 (Baltic Standard LR1)",
+      dwt: 74000,
+      intake: 65000,
+      cargoBSIndia: 65000,
+      ladenSpeed: 13.0,
+      ballastSpeed: 12.0,
+      ladenCons: 30.5,
+      ballastCons: 24.5,
+      portConsLoad: 5.0,
+      portConsDisch: 32.0,
+      portConsWait: 5.0,
+      commissionPct: 3.75,
+      seaMargin: 1.05,
+      riverDays: 0,
+      cleaningCost: 25000,
+      cleaningDays: 2.5,
     },
   },
 
@@ -38,26 +67,31 @@ const BS_DATA = {
   get vessel() { return this.vesselClasses.MR50; },
 
   // ── Cargo matrix: how much each vessel class loads on each route ──
-  // Varies by route draft/berth restrictions and vessel geometry
   cargoByRoute: {
     HANDC37: { TC2: 33000, TC5: 33000, TC6: 30000, TC8: 33000, TC12: 33000, TC14: 33000, TC15: 33000, TC17: 33000, TC18: 33000, TC20: 33000, TC23: 30000 },
-    MR50:    { TC2: 37000, TC5: 44000, TC6: 44000, TC8: 44000, TC12: 35000, TC14: 38000, TC15: 44000, TC17: 35000, TC18: 38000, TC20: 44000, TC23: 44000 },
-    LR1_75:  { TC2: 65000, TC5: 55000, TC6: 65000, TC8: 65000, TC12: 65000, TC14: 65000, TC15: 65000, TC17: 65000, TC18: 65000, TC20: 65000, TC23: 65000 },
+    MR50: { TC2: 37000, TC5: 44000, TC6: 44000, TC8: 44000, TC12: 35000, TC14: 38000, TC15: 44000, TC17: 35000, TC18: 38000, TC20: 44000, TC23: 44000 },
+    LR1_75: { TC2: 65000, TC5: 55000, TC6: 65000, TC8: 65000, TC12: 65000, TC14: 65000, TC15: 65000, TC17: 65000, TC18: 65000, TC20: 65000, TC23: 65000 },
+  },
+
+  // ── Overage Pricing for small-vessel routes ──
+  overageRoutes: {
+    TC6: { baseCargo: 35000, overagePct: 0.5 },
+    TC23: { baseCargo: 35000, overagePct: 0.5 },
   },
 
   // ── Terminal Pumping Rates (mt/hr) ──
   terminalRates: {
-    TC2:  { load: 771, disch: 771 },
-    TC5:  { load: 1146, disch: 1146 },
-    TC6:  { load: 625, disch: 625 },
+    TC2: { load: 771, disch: 771 },
+    TC5: { load: 1146, disch: 1146 },
+    TC6: { load: 625, disch: 625 },
     TC12: { load: 729, disch: 729 },
     TC14: { load: 792, disch: 792 },
     TC17: { load: 729, disch: 729 },
-    BS_LOAD:  200,
+    BS_LOAD: 200,
     BS_DISCH: 200,
   },
 
-  // ── Laytime (BS→India charterparty standard for MR50 40k cargo) ──
+  // ── Laytime (BS->India charterparty standard for MR50 40k cargo) ──
   laytime: {
     loadHours: 200,
     dischHours: 200,
@@ -65,284 +99,247 @@ const BS_DATA = {
     get dischDays() { return this.dischHours / 24; },
   },
 
-  // ── TC Route Definitions ──
-  // bunkerRef: 'asia' routes use Singapore VLSFO; all others use Rotterdam VLSFO
+  // ── TC Route Definitions (bunkerRef: 'asia' = Singapore VLSFO, else Rotterdam VLSFO) ──
   routes: {
-    TC2:  { desc: "Continent -> USAC",       loadPort: "Rotterdam",  dischPort: "New York",      ballastBack: "Houston",    usesSuez: false, bunkerRef: "atlantic" },
-    TC5:  { desc: "MEG -> Japan (LR1)",      loadPort: "Ras Tanura", dischPort: "Yokohama",      ballastBack: "Ras Tanura", usesSuez: false, bunkerRef: "asia" },
-    TC6:  { desc: "Algeria -> Med (Handy)",   loadPort: "Skikda",     dischPort: "Lavera",        ballastBack: "Skikda",    usesSuez: false, bunkerRef: "atlantic" },
-    TC12: { desc: "WCI -> Japan (LR1)",       loadPort: "Mundra",     dischPort: "Yokohama",      ballastBack: "Mundra",     usesSuez: false, bunkerRef: "asia" },
-    TC14: { desc: "USG -> Continent",         loadPort: "Houston",    dischPort: "Amsterdam",     ballastBack: "Rotterdam",  usesSuez: false, bunkerRef: "atlantic" },
-    TC17: { desc: "AG -> East Africa",        loadPort: "Ras Tanura", dischPort: "Dar es Salaam", ballastBack: "Ras Tanura", usesSuez: false, bunkerRef: "asia" },
+    TC2: { desc: "Continent -> USAC", loadPort: "Rotterdam", dischPort: "New York", ballastBack: "Houston", usesSuez: false, bunkerRef: "atlantic" },
+    TC5: { desc: "MEG -> Japan (LR1)", loadPort: "Ras Tanura", dischPort: "Yokohama", ballastBack: "Ras Tanura", usesSuez: false, bunkerRef: "asia" },
+    TC6: { desc: "Algeria -> Med (Handy)", loadPort: "Skikda", dischPort: "Lavera", ballastBack: "Skikda", usesSuez: false, bunkerRef: "atlantic" },
+    TC12: { desc: "WCI -> Japan (LR1)", loadPort: "Mundra", dischPort: "Yokohama", ballastBack: "Mundra", usesSuez: false, bunkerRef: "asia" },
+    TC14: { desc: "USG -> Continent", loadPort: "Houston", dischPort: "Amsterdam", ballastBack: "Rotterdam", usesSuez: false, bunkerRef: "atlantic" },
+    TC17: { desc: "AG -> East Africa", loadPort: "Ras Tanura", dischPort: "Dar es Salaam", ballastBack: "Ras Tanura", usesSuez: false, bunkerRef: "asia" },
   },
 
   // ── Opening Positions & Competition Mapping ──
   openingPositions: {
-    // Black Sea
-    "Constanta":   { region: "Romania",      competingRoutes: ["TC6", "TC2"],       nextVoyage: { TC6: "BEST_TC6_TC2", TC2: "TC14" } },
-    "Istanbul":    { region: "Turkey",       competingRoutes: ["TC6", "TC2"],       nextVoyage: { TC6: "BEST_TC6_TC2", TC2: "TC14" } },
-    // Med East
-    "Piraeus":     { region: "Greece",       competingRoutes: ["TC6", "TC2"],       nextVoyage: { TC6: "BEST_TC6_TC2", TC2: "TC14" } },
-    "Augusta":     { region: "Sicily",       competingRoutes: ["TC6", "TC2"],       nextVoyage: { TC6: "BEST_TC6_TC2", TC2: "TC14" } },
-    // Med West
-    "Lavera":      { region: "S. France",    competingRoutes: ["TC6"],              nextVoyage: { TC6: "BEST_TC6_TC2" } },
-    "Algeciras":   { region: "Spain",        competingRoutes: ["TC2", "TC6"],       nextVoyage: { TC2: "TC14", TC6: "BEST_TC6_TC2" } },
-    // NW Europe
-    "Rotterdam":   { region: "NW Europe",    competingRoutes: ["TC2", "TC6"],       nextVoyage: { TC2: "TC14", TC6: "BEST_TC6_TC2" } },
-    // Atlantic / WAF
-    "Las Palmas":  { region: "Canaries",     competingRoutes: ["TC2", "TC6"],       nextVoyage: { TC2: "TC14", TC6: "BEST_TC6_TC2" } },
-    "Dakar":       { region: "Senegal",      competingRoutes: ["TC14", "TC2", "TC6"], nextVoyage: { TC14: "TC2", TC2: "TC14", TC6: "BEST_TC6_TC2" } },
-    "Accra":       { region: "Ghana",        competingRoutes: ["TC14", "TC2", "TC6"], nextVoyage: { TC14: "TC2", TC2: "TC14", TC6: "BEST_TC6_TC2" } },
-    "Lagos":       { region: "Nigeria",      competingRoutes: ["TC14", "TC2", "TC6"], nextVoyage: { TC14: "TC2", TC2: "TC14", TC6: "BEST_TC6_TC2" } },
-    // AG
-    "Fujairah":    { region: "UAE",          competingRoutes: ["TC17", "TC5"],      nextVoyage: { TC17: "TC17", TC5: "TC17" } },
-    // South Africa
-    "Durban":      { region: "South Africa", competingRoutes: ["TC17", "TC14"],     nextVoyage: { TC17: "TC17", TC14: "TC2" } },
+    Constanta: { region: "Romania", competingRoutes: ["TC6", "TC2"], nextVoyage: { TC6: "BEST_TC6_TC2", TC2: "TC14" } },
+    Istanbul: { region: "Turkey", competingRoutes: ["TC6", "TC2"], nextVoyage: { TC6: "BEST_TC6_TC2", TC2: "TC14" } },
+    Piraeus: { region: "Greece", competingRoutes: ["TC6", "TC2"], nextVoyage: { TC6: "BEST_TC6_TC2", TC2: "TC14" } },
+    Augusta: { region: "Sicily", competingRoutes: ["TC6", "TC2"], nextVoyage: { TC6: "BEST_TC6_TC2", TC2: "TC14" } },
+    Lavera: { region: "S. France", competingRoutes: ["TC6"], nextVoyage: { TC6: "BEST_TC6_TC2" } },
+    Algeciras: { region: "Spain", competingRoutes: ["TC2", "TC6"], nextVoyage: { TC2: "TC14", TC6: "BEST_TC6_TC2" } },
+    Rotterdam: { region: "NW Europe", competingRoutes: ["TC2", "TC6"], nextVoyage: { TC2: "TC14", TC6: "BEST_TC6_TC2" } },
+    "Las Palmas": { region: "Canaries", competingRoutes: ["TC2", "TC6"], nextVoyage: { TC2: "TC14", TC6: "BEST_TC6_TC2" } },
+    Dakar: { region: "Senegal", competingRoutes: ["TC14", "TC2", "TC6"], nextVoyage: { TC14: "TC2", TC2: "TC14", TC6: "BEST_TC6_TC2" } },
+    Accra: { region: "Ghana", competingRoutes: ["TC14", "TC2", "TC6"], nextVoyage: { TC14: "TC2", TC2: "TC14", TC6: "BEST_TC6_TC2" } },
+    Lagos: { region: "Nigeria", competingRoutes: ["TC14", "TC2", "TC6"], nextVoyage: { TC14: "TC2", TC2: "TC14", TC6: "BEST_TC6_TC2" } },
+    Fujairah: { region: "UAE", competingRoutes: ["TC17", "TC5"], nextVoyage: { TC17: "TC17", TC5: "TC17" } },
+    Durban: { region: "South Africa", competingRoutes: ["TC17", "TC14"], nextVoyage: { TC17: "TC17", TC14: "TC2" } },
   },
 
-  // ── Black Sea → India voyage structure ──
+  // ── Black Sea -> India voyage structure ──
   bsIndiaVoyage: {
-    loadPorts: [
-      { name: "Tuapse", cargo: 30000, isRiver: false },
-      { name: "Taman", cargo: 10000, isRiver: false },
-    ],
-    dischOptions: {
-      WCI: { ports: ["Mundra", "Kandla"], label: "West Coast India" },
-      ECI: { ports: ["Chennai", "Haldia"], label: "East Coast India" },
-    },
+    loadPorts: [{ name: "Odessa", cargo: 40000, isRiver: false }],
+    dischOptions: { WCI: { ports: ["Mundra", "Kandla"], label: "West Coast India" }, ECI: { ports: ["Chennai", "Haldia"], label: "East Coast India" } },
     ballastAfter: "Ras Tanura",
     nextVoyageOptions: ["TC17", "TC5", "TC12"],
-    // Transit costs for laden voyage (Black Sea → Med → Suez → India)
-    // Suez costs are vessel-class specific; looked up via state.vesselClass
-    ladenTransits: {
-      bosphorus: { cost: 10000, days: 0.5 },
-      suez: { cost: { HANDC37: 120000, MR50: 170000, LR1_75: 350000 }, days: 1.0 },
-    },
+    ladenTransits: { bosphorus: { cost: 10000, days: 0.5 }, suez: { cost: { HANDC37: 120000, MR50: 170000, LR1_75: 350000 }, days: 1.0 } },
   },
 
   // ── Distance Matrix (nm) ──
   distances: {
-    // === Opening positions → Tuapse (BS load port) ===
-    // Black Sea (no Bosphorus transit needed)
-    "Constanta|Tuapse":      350,
-    // Med + others (Bosphorus transit needed — cost added in bosphorusLegs)
-    "Istanbul|Tuapse":       650,
-    "Piraeus|Tuapse":        1000,
-    "Augusta|Tuapse":        1600,
-    "Lavera|Tuapse":         2200,
-    "Algeciras|Tuapse":      2800,
-    "Rotterdam|Tuapse":      4200,
-    "Las Palmas|Tuapse":     3500,
-    "Dakar|Tuapse":          4400,
-    "Accra|Tuapse":          5000,
-    "Lagos|Tuapse":          4800,
-    "Fujairah|Tuapse":       4200,    // via Suez + Med + Bosphorus
-    "Durban|Tuapse":         5800,    // via Cape → Med → Bosphorus
-
-    // === Opening positions → Competition load ports ===
-    // → Houston (TC14)
-    "Constanta|Houston":     5800,
-    "Istanbul|Houston":      5400,
-    "Piraeus|Houston":       5600,
-    "Augusta|Houston":       5400,
-    "Lavera|Houston":        5200,
-    "Algeciras|Houston":     4200,
-    "Rotterdam|Houston":     4890,
-    "Las Palmas|Houston":    4100,
-    "Dakar|Houston":         4500,
-    "Accra|Houston":         5800,
-    "Lagos|Houston":         5500,
-    "Fujairah|Houston":      8800,
-    "Durban|Houston":        7600,
-
-    // → Rotterdam (TC2)
-    "Rotterdam|Rotterdam":   0,       // self — vessel already at load port
-    "Constanta|Rotterdam":   3600,
-    "Istanbul|Rotterdam":    3200,
-    "Piraeus|Rotterdam":     3400,
-    "Augusta|Rotterdam":     3200,
-    "Lavera|Rotterdam":      2100,
-    "Algeciras|Rotterdam":   1900,
-    "Las Palmas|Rotterdam":  1700,
-    "Dakar|Rotterdam":       2800,
-    "Accra|Rotterdam":       3600,
-    "Lagos|Rotterdam":       4100,
-    "Fujairah|Rotterdam":    6200,
-    "Durban|Rotterdam":      6400,
-
-    // → Skikda (TC6)
-    "Constanta|Skikda":      1400,
-    "Istanbul|Skikda":       1100,
-    "Piraeus|Skikda":        900,
-    "Augusta|Skikda":        500,
-    "Lavera|Skikda":         430,
-    "Algeciras|Skikda":      600,
-    "Rotterdam|Skikda":      2250,
-    "Las Palmas|Skikda":     1200,
-    "Dakar|Skikda":          2200,
-    "Accra|Skikda":          3100,
-    "Lagos|Skikda":          3300,
-    "Fujairah|Skikda":       4000,
-    "Durban|Skikda":         5900,
-
-    // → Ras Tanura (TC5 / TC17)
-    "Constanta|Ras Tanura":  4600,    // via Bosphorus + Med + Suez
-    "Istanbul|Ras Tanura":   4200,    // via Med + Suez
-    "Piraeus|Ras Tanura":    3700,    // via Med + Suez
-    "Augusta|Ras Tanura":    4000,    // via Med + Suez
-    "Lavera|Ras Tanura":     4400,    // via Med + Suez
-    "Algeciras|Ras Tanura":  4800,    // via Med + Suez (or via Suez + Red Sea)
-    "Rotterdam|Ras Tanura":  6200,    // via Suez
-    "Las Palmas|Ras Tanura": 5600,    // via Suez
-    "Dakar|Ras Tanura":      6400,    // via Cape or via Suez
-    "Accra|Ras Tanura":      6800,    // via Cape
-    "Lagos|Ras Tanura":      6600,    // via Cape
-    "Fujairah|Ras Tanura":   200,
-    "Durban|Ras Tanura":     3400,
-
-    // → Mundra (TC12)
-    "Constanta|Mundra":      5200,    // via Bosphorus + Med + Suez + Arabian Sea
-    "Istanbul|Mundra":       4800,    // via Med + Suez + Arabian Sea
-    "Piraeus|Mundra":        4300,    // via Med + Suez + Arabian Sea
-    "Augusta|Mundra":        4600,    // via Med + Suez + Arabian Sea
-    "Lavera|Mundra":         5000,    // via Med + Suez + Arabian Sea
-    "Algeciras|Mundra":      5400,    // via Med + Suez + Arabian Sea
-    "Rotterdam|Mundra":      6800,    // via Suez + Arabian Sea
-    "Las Palmas|Mundra":     6200,    // via Suez
-    "Dakar|Mundra":          7000,    // via Cape or Suez
-    "Accra|Mundra":          7400,    // via Cape
-    "Lagos|Mundra":          7200,    // via Cape
-    "Fujairah|Mundra":       900,     // Arabian Sea direct
-    "Durban|Mundra":         3600,    // via Indian Ocean
-
-    // === Black Sea laden voyage ===
-    "Tuapse|Taman":          100,     // coastal hop in Black Sea
-    "Taman|Mundra":          4500,    // via Bosphorus + Suez
-    "Taman|Kandla":          4600,
-    "Taman|Chennai":         5100,    // via Suez + around India
-    "Taman|Haldia":          5600,
-    "Mundra|Kandla":         150,     // coastal WCI
-    "Chennai|Haldia":        700,     // coastal ECI
-
-    // === Post-discharge ballast to AG ===
-    "Mundra|Ras Tanura":     1200,
-    "Kandla|Ras Tanura":     1250,
-    "Chennai|Ras Tanura":    2800,
-    "Haldia|Ras Tanura":     3500,
-
-    // === TC route laden distances ===
-    "Houston|Amsterdam":     4850,
-    "Rotterdam|New York":    3460,
-    "Skikda|Lavera":         430,
-    "Ras Tanura|Yokohama":   6570,
+    // — BS_DATA legs (edit in the per-tool config) —
+    "Constanta|Odessa": 180,
+    "Istanbul|Odessa": 500,
+    "Piraeus|Odessa": 850,
+    "Augusta|Odessa": 1450,
+    "Lavera|Odessa": 2050,
+    "Algeciras|Odessa": 2650,
+    "Rotterdam|Odessa": 4050,
+    "Las Palmas|Odessa": 3350,
+    "Dakar|Odessa": 4250,
+    "Accra|Odessa": 4850,
+    "Lagos|Odessa": 4650,
+    "Fujairah|Odessa": 4050,
+    "Durban|Odessa": 5650,
+    "Constanta|Houston": 5800,
+    "Istanbul|Houston": 5400,
+    "Piraeus|Houston": 5600,
+    "Augusta|Houston": 5400,
+    "Algeciras|Houston": 4200,
+    "Fujairah|Houston": 8800,
+    "Rotterdam|Rotterdam": 0,
+    "Constanta|Rotterdam": 3600,
+    "Istanbul|Rotterdam": 3200,
+    "Piraeus|Rotterdam": 3400,
+    "Augusta|Rotterdam": 3200,
+    "Algeciras|Rotterdam": 1900,
+    "Fujairah|Rotterdam": 6200,
+    "Constanta|Skikda": 1400,
+    "Istanbul|Skikda": 1100,
+    "Piraeus|Skikda": 900,
+    "Augusta|Skikda": 500,
+    "Algeciras|Skikda": 600,
+    "Fujairah|Skikda": 4000,
+    "Constanta|Ras Tanura": 4600,
+    "Istanbul|Ras Tanura": 4200,
+    "Piraeus|Ras Tanura": 3700,
+    "Augusta|Ras Tanura": 4000,
+    "Lavera|Ras Tanura": 4400,
+    "Algeciras|Ras Tanura": 4800,
+    "Rotterdam|Ras Tanura": 6200,
+    "Las Palmas|Ras Tanura": 5600,
+    "Dakar|Ras Tanura": 6400,
+    "Accra|Ras Tanura": 6800,
+    "Lagos|Ras Tanura": 6600,
+    "Fujairah|Ras Tanura": 200,
+    "Constanta|Mundra": 5200,
+    "Istanbul|Mundra": 4800,
+    "Piraeus|Mundra": 4300,
+    "Augusta|Mundra": 4600,
+    "Lavera|Mundra": 5000,
+    "Algeciras|Mundra": 5400,
+    "Rotterdam|Mundra": 6800,
+    "Las Palmas|Mundra": 6200,
+    "Dakar|Mundra": 7000,
+    "Accra|Mundra": 7400,
+    "Lagos|Mundra": 7200,
+    "Fujairah|Mundra": 900,
+    "Durban|Mundra": 3600,
+    "Odessa|Mundra": 4500,
+    "Odessa|Kandla": 4600,
+    "Odessa|Chennai": 5100,
+    "Odessa|Haldia": 5600,
+    // — shared with the sibling tool (edit in shared_config.py) —
+    "Accra|Houston": 5800,
+    "Lagos|Houston": 5500,
+    "Dakar|Houston": 4500,
+    "Las Palmas|Houston": 4100,
+    "Rotterdam|Houston": 4890,
+    "New York|Houston": 1610,
+    "Lavera|Houston": 5200,
+    "Durban|Houston": 7600,
+    "Accra|Rotterdam": 3600,
+    "Lagos|Rotterdam": 4100,
+    "Dakar|Rotterdam": 2800,
+    "Las Palmas|Rotterdam": 1700,
+    "Lavera|Rotterdam": 2100,
+    "Durban|Rotterdam": 6400,
+    "Accra|Skikda": 3100,
+    "Lagos|Skikda": 3300,
+    "Dakar|Skikda": 2200,
+    "Las Palmas|Skikda": 1200,
+    "Rotterdam|Skikda": 2250,
+    "Lavera|Skikda": 430,
+    "Durban|Skikda": 5900,
+    "Durban|Ras Tanura": 3400,
+    "Mundra|Kandla": 150,
+    "Chennai|Haldia": 700,
+    "Mundra|Ras Tanura": 1200,
+    "Kandla|Ras Tanura": 1250,
+    "Chennai|Ras Tanura": 2800,
+    "Haldia|Ras Tanura": 3500,
+    "Mundra|Rotterdam": 6800,
+    "Mundra|Houston": 9800,
+    "Mundra|Skikda": 5300,
+    "Kandla|Rotterdam": 6850,
+    "Kandla|Houston": 9850,
+    "Kandla|Skikda": 5350,
+    "Chennai|Rotterdam": 7600,
+    "Chennai|Houston": 10500,
+    "Chennai|Skikda": 6100,
+    "Haldia|Rotterdam": 8300,
+    "Haldia|Houston": 11200,
+    "Haldia|Skikda": 6800,
+    "Houston|Amsterdam": 4850,
+    "Rotterdam|New York": 3460,
+    "Skikda|Lavera": 430,
+    "Ras Tanura|Yokohama": 6570,
     "Ras Tanura|Dar es Salaam": 3100,
-    "Mundra|Yokohama":       4500,
-
-    // === TC route ballast-back distances ===
-    "Amsterdam|Rotterdam":   60,
-    "New York|Houston":      1610,
-    "Lavera|Skikda":         430,
-    "Lavera|Rotterdam":      2100,
+    "Mundra|Yokohama": 4500,
+    "Amsterdam|Rotterdam": 60,
     "Dar es Salaam|Ras Tanura": 3100,
-    "Yokohama|Ras Tanura":   6570,
-    "Yokohama|Mundra":       4500,
+    "Yokohama|Ras Tanura": 6570,
+    "Yokohama|Mundra": 4500,
   },
 
   // ── Port Costs (USD per call) ──
   portCosts: {
-    // Black Sea
-    "Tuapse":         45000,
-    "Taman":          35000,
-    // Med
-    "Constanta":      40000,
-    "Piraeus":        35000,
-    "Augusta":        35000,
-    "Algeciras":      35000,
-    // Existing
-    "Mundra":         50000,
-    "Kandla":         50000,
-    "Chennai":        55000,
-    "Haldia":         55000,
-    "Ras Tanura":     35000,
-    "Houston":        37000,
-    "Amsterdam":      60000,
-    "Rotterdam":      44000,
-    "New York":       41000,
-    "Skikda":         25000,
-    "Lavera":         30000,
-    "Yokohama":       50000,
-    "Dar es Salaam":  35000,
-    "Fujairah":       30000,
-    "Durban":         45000,
-    "Las Palmas":     30000,
-    "Lagos":          55000,
-    "Dakar":          35000,
-    "Istanbul":       45000,
-    "Accra":          35000,
+    // — BS_DATA ports (edit in the per-tool config) —
+    Odessa: 40000,
+    Constanta: 40000,
+    Piraeus: 35000,
+    Augusta: 35000,
+    Fujairah: 30000,
+    Istanbul: 45000,
+    Accra: 35000,
+    // — shared with the sibling tool (edit in shared_config.py) —
+    Mundra: 50000,
+    Kandla: 50000,
+    Chennai: 55000,
+    Haldia: 55000,
+    "Ras Tanura": 35000,
+    Houston: 37000,
+    Amsterdam: 60000,
+    Rotterdam: 44000,
+    "New York": 41000,
+    Skikda: 25000,
+    Lavera: 30000,
+    Yokohama: 50000,
+    "Dar es Salaam": 35000,
+    Lagos: 55000,
+    Dakar: 35000,
+    "Las Palmas": 30000,
+    Durban: 45000,
+    Algeciras: 35000,
   },
 
   // ── Canal Costs (vessel-class specific for Suez) ──
   canalCosts: {
-    suez_laden:   { HANDC37: 120000, MR50: 170000, LR1_75: 350000 },
+    suez_laden: { HANDC37: 120000, MR50: 170000, LR1_75: 350000 },
     suez_ballast: { HANDC37: 100000, MR50: 140000, LR1_75: 280000 },
-    suez_days:    1.0,
-    bosphorus_laden:   10000,    // Montreux Convention: no toll, agency/pilotage only
-    bosphorus_ballast: 8000,
-    bosphorus_days: 0.5,
+    suez_days: 1.0,
     panama_ballast: 150000,
     panama_waitDays: 2.0,
+    bosphorus_laden: 10000,
+    bosphorus_ballast: 8000,
+    bosphorus_days: 0.5,
   },
 
-  // ── Panama Canal Legs ──
-  panamaLegs: {
-    // none for Black Sea tool
-  },
+  // ── Panama Canal Legs (ballast legs routed via Panama) ──
+  panamaLegs: {},
 
   // ── Bosphorus Transit Legs (ballast entering/exiting Black Sea) ──
   bosphorusLegs: {
-    // Ballast TO Tuapse — all non-Black-Sea positions
-    "Istanbul|Tuapse":     true,
-    "Piraeus|Tuapse":      true,
-    "Augusta|Tuapse":      true,
-    "Lavera|Tuapse":       true,
-    "Algeciras|Tuapse":    true,
-    "Rotterdam|Tuapse":    true,
-    "Las Palmas|Tuapse":   true,
-    "Dakar|Tuapse":        true,
-    "Accra|Tuapse":        true,
-    "Lagos|Tuapse":        true,
-    "Fujairah|Tuapse":     true,
-    "Durban|Tuapse":       true,
-    // Ballast FROM Black Sea to competition ports
-    "Constanta|Houston":   true,
+    "Istanbul|Odessa": true,
+    "Piraeus|Odessa": true,
+    "Augusta|Odessa": true,
+    "Lavera|Odessa": true,
+    "Algeciras|Odessa": true,
+    "Rotterdam|Odessa": true,
+    "Las Palmas|Odessa": true,
+    "Dakar|Odessa": true,
+    "Accra|Odessa": true,
+    "Lagos|Odessa": true,
+    "Fujairah|Odessa": true,
+    "Durban|Odessa": true,
+    "Constanta|Houston": true,
     "Constanta|Rotterdam": true,
-    "Constanta|Skikda":    true,
+    "Constanta|Skikda": true,
     "Constanta|Ras Tanura": true,
-    "Constanta|Mundra":    true,
+    "Constanta|Mundra": true,
   },
 
   // ── Suez Transit Legs (ballast through Suez) ──
   suezBallastLegs: {
-    "Fujairah|Tuapse":     true,    // AG → Med → Black Sea
-    "Fujairah|Houston":    true,    // AG → Suez → Med → Atlantic
-    "Fujairah|Rotterdam":  true,
-    "Fujairah|Skikda":     true,
-    // Med/Atlantic/WAF → Ras Tanura or Mundra via Suez
+    "Fujairah|Odessa": true,
+    "Fujairah|Houston": true,
+    "Fujairah|Rotterdam": true,
+    "Fujairah|Skikda": true,
     "Constanta|Ras Tanura": true,
-    "Istanbul|Ras Tanura":  true,
-    "Piraeus|Ras Tanura":   true,
-    "Augusta|Ras Tanura":   true,
-    "Lavera|Ras Tanura":    true,
+    "Istanbul|Ras Tanura": true,
+    "Piraeus|Ras Tanura": true,
+    "Augusta|Ras Tanura": true,
+    "Lavera|Ras Tanura": true,
     "Algeciras|Ras Tanura": true,
     "Rotterdam|Ras Tanura": true,
-    "Las Palmas|Ras Tanura":true,
-    "Constanta|Mundra":     true,
-    "Istanbul|Mundra":      true,
-    "Piraeus|Mundra":       true,
-    "Augusta|Mundra":       true,
-    "Lavera|Mundra":        true,
-    "Algeciras|Mundra":     true,
-    "Rotterdam|Mundra":     true,
-    "Las Palmas|Mundra":    true,
+    "Las Palmas|Ras Tanura": true,
+    "Constanta|Mundra": true,
+    "Istanbul|Mundra": true,
+    "Piraeus|Mundra": true,
+    "Augusta|Mundra": true,
+    "Lavera|Mundra": true,
+    "Algeciras|Mundra": true,
+    "Rotterdam|Mundra": true,
+    "Las Palmas|Mundra": true,
   },
 };
