@@ -134,7 +134,7 @@ const BS_DATA = {
       ECI: { ports: ["Chennai", "Haldia"], label: "East Coast India" },
       RTM: { ports: ["Rotterdam"], label: "Rotterdam", cargoCap: 40000, vesselClasses: ["HANDC37", "MR50"], transits: ["bosphorus"] },
       EGY: { ports: ["Alexandria"], label: "Egypt (Alexandria)", cargoCap: 33000, vesselClasses: ["HANDC37", "MR50"], transits: ["bosphorus"] },
-      IRQ: { ports: ["Umm Qasr"], label: "Iraq (Umm Qasr)", cargoCap: 33000, vesselClasses: ["HANDC37", "MR50"], transits: ["bosphorus", "suez"] },
+      IRQ: { ports: ["Umm Qasr"], label: "Iraq (Umm Qasr)", cargoCap: 33000, vesselClasses: ["HANDC37", "MR50"], dischRate: 700, transits: ["bosphorus", "suez"] },
       CHN: { ports: ["Zhangjiagang", "Tianjin"], label: "China (Zhangjiagang + Tianjin)", cargoCap: 40000, vesselClasses: ["MR50"], transits: ["bosphorus", "suez"] },
     },
     ballastAfter: "Ras Tanura",

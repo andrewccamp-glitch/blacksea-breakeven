@@ -384,6 +384,13 @@ function effectiveCargo(v) {
   return cargo;
 }
 
+// Discharge pumping rate (mt/hr) — per destination where it differs from the
+// BS_DISCH default (e.g. Umm Qasr discharges at 700).
+function dischRate() {
+  var opt = getDischOpt();
+  return (opt && opt.dischRate) || D.terminalRates.BS_DISCH;
+}
+
 // Grey out vessel classes not allowed for the selected destination; if the
 // current class is disallowed, auto-switch to MR50 (allowed everywhere).
 function applyDischConstraints() {
@@ -422,7 +429,7 @@ function applyVesselClass(vcKey) {
   state.cleaningDays = v.cleaningDays;
   state.cargoSAIndia = cargo;
   state.loadDays = cargo / D.terminalRates.BS_LOAD / 24;
-  state.dischDays = cargo / D.terminalRates.BS_DISCH / 24;
+  state.dischDays = cargo / dischRate() / 24;
   // Update header
   var el = document.getElementById('dispVessel');
   if (el) el.innerHTML = v.name.split(' ')[0] + ' &mdash; Black Sea &rarr; ' + state.dischRegion + ' vs Atlantic Alternatives';
@@ -2011,11 +2018,11 @@ function renderAssumptions(sub) {
     html += '<div class="assume-section">BS\u2192India Laytime at Selected Vessel</div>';
     var bsCargo = getVessel().cargoBSIndia;
     var bsLoadH = bsCargo / D.terminalRates.BS_LOAD;
-    var bsDischH = bsCargo / D.terminalRates.BS_DISCH;
+    var bsDischH = bsCargo / dischRate();
     html += '<table class="assume-table" style="max-width:500px;"><tbody>';
     html += '<tr><td>BS\u2192India Cargo</td><td class="num">' + fmtN(bsCargo) + ' mt</td></tr>';
     html += '<tr><td>Load Rate</td><td class="num">' + fmtN(D.terminalRates.BS_LOAD) + ' mt/hr</td></tr>';
-    html += '<tr><td>Disch Rate</td><td class="num">' + fmtN(D.terminalRates.BS_DISCH) + ' mt/hr</td></tr>';
+    html += '<tr><td>Disch Rate</td><td class="num">' + fmtN(dischRate()) + ' mt/hr (' + state.dischRegion + ')</td></tr>';
     html += '<tr><td>Load Hours</td><td class="num">' + fmtD(bsLoadH, 1) + ' hrs (' + fmtD(bsLoadH/24, 1) + ' days)</td></tr>';
     html += '<tr><td>Disch Hours</td><td class="num">' + fmtD(bsDischH, 1) + ' hrs (' + fmtD(bsDischH/24, 1) + ' days)</td></tr>';
     html += '<tr><td>Cleaning Cost</td><td class="num">$' + fmtN(getVessel().cleaningCost) + ' per clean \u00d7 2</td></tr>';
