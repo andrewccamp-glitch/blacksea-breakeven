@@ -171,6 +171,10 @@
         <div class="toggle-group" id="dischToggle">
           <button class="toggle-btn active" data-val="WCI">WCI</button>
           <button class="toggle-btn" data-val="ECI">ECI</button>
+          <button class="toggle-btn" data-val="RTM" title="Rotterdam — Handy 33k / MR 40k (Bosphorus only)">RTM</button>
+          <button class="toggle-btn" data-val="EGY" title="Egypt (Alexandria) — 33k max, Handy/MR (Bosphorus only)">EGY</button>
+          <button class="toggle-btn" data-val="IRQ" title="Iraq (Umm Qasr) — 33k max (draft), Handy/MR (Bosphorus + Suez)">IRQ</button>
+          <button class="toggle-btn" data-val="CHN" title="China (Zhangjiagang + Tianjin) — 40k, MR only (Bosphorus + Suez)">CHN</button>
         </div>
       </div>
       <div>
@@ -370,10 +374,42 @@ var state = {
 };
 
 function getVessel() { return D.vesselClasses[state.vesselClass]; }
+function getDischOpt() { return D.bsIndiaVoyage.dischOptions[state.dischRegion]; }
+
+// Destination-aware effective cargo: min(vessel BS cargo, destination cap)
+function effectiveCargo(v) {
+  var opt = getDischOpt();
+  var cargo = v.cargoBSIndia;
+  if (opt && opt.cargoCap) cargo = Math.min(cargo, opt.cargoCap);
+  return cargo;
+}
+
+// Grey out vessel classes not allowed for the selected destination; if the
+// current class is disallowed, auto-switch to MR50 (allowed everywhere).
+function applyDischConstraints() {
+  var opt = getDischOpt();
+  var allowed = (opt && opt.vesselClasses) || Object.keys(D.vesselClasses);
+  document.querySelectorAll('#vesselToggle .toggle-btn').forEach(function(b) {
+    var ok = allowed.indexOf(b.dataset.val) !== -1;
+    b.disabled = !ok;
+    b.style.opacity = ok ? '' : '0.35';
+    b.style.cursor = ok ? '' : 'not-allowed';
+    b.title = ok ? '' : 'Not available for ' + (opt.label || state.dischRegion);
+  });
+  if (allowed.indexOf(state.vesselClass) === -1) {
+    document.querySelectorAll('#vesselToggle .toggle-btn').forEach(function(b) {
+      b.classList.toggle('active', b.dataset.val === 'MR50');
+    });
+    applyVesselClass('MR50');
+    return;
+  }
+  applyVesselClass(state.vesselClass);  // re-apply cap for new destination
+}
 
 function applyVesselClass(vcKey) {
   state.vesselClass = vcKey;
   var v = D.vesselClasses[vcKey];
+  var cargo = effectiveCargo(v);
   state.ladenSpeed = v.ladenSpeed;
   state.ballastSpeed = v.ballastSpeed;
   state.ladenCons = v.ladenCons;
@@ -384,12 +420,12 @@ function applyVesselClass(vcKey) {
   state.commissionPct = v.commissionPct;
   state.cleaningCost = v.cleaningCost;
   state.cleaningDays = v.cleaningDays;
-  state.cargoSAIndia = v.cargoBSIndia;
-  state.loadDays = v.cargoBSIndia / D.terminalRates.BS_LOAD / 24;
-  state.dischDays = v.cargoBSIndia / D.terminalRates.BS_DISCH / 24;
+  state.cargoSAIndia = cargo;
+  state.loadDays = cargo / D.terminalRates.BS_LOAD / 24;
+  state.dischDays = cargo / D.terminalRates.BS_DISCH / 24;
   // Update header
   var el = document.getElementById('dispVessel');
-  if (el) el.innerHTML = v.name.split(' ')[0] + ' &mdash; Black Sea &rarr; India vs Atlantic Alternatives';
+  if (el) el.innerHTML = v.name.split(' ')[0] + ' &mdash; Black Sea &rarr; ' + state.dischRegion + ' vs Atlantic Alternatives';
   // Update param inputs in UI
   updateParamInputs();
   calculateAll();
@@ -731,18 +767,19 @@ function calcBSIndiaTCE(openPos, rate, refDate) {
   var l2d1Dist = getDist(lastLoadPort, ports[0]);
   var l2d1Days = l2d1Dist ? ladenDaysFromDist(l2d1Dist) : 0;
 
-  // Laden transit costs (Bosphorus + Suez for exiting Black Sea to India)
+  // Laden transit costs — per destination: RTM/EGY exit via Bosphorus only;
+  // WCI/ECI/IRQ/CHN also transit Suez. dischOpt.transits names which apply
+  // (absent = all, preserving the original India-only behaviour).
   var ladenTransitDays = 0, ladenTransitCost = 0;
   if (voy.ladenTransits) {
-    if (voy.ladenTransits.bosphorus) {
-      ladenTransitDays += voy.ladenTransits.bosphorus.days;
-      ladenTransitCost += voy.ladenTransits.bosphorus.cost;
-    }
-    if (voy.ladenTransits.suez) {
-      ladenTransitDays += voy.ladenTransits.suez.days;
-      var suezCost = voy.ladenTransits.suez.cost;
-      ladenTransitCost += (typeof suezCost === 'object') ? (suezCost[state.vesselClass] || suezCost.MR50) : suezCost;
-    }
+    var transitNames = dischOpt.transits || Object.keys(voy.ladenTransits);
+    transitNames.forEach(function(tn) {
+      var tr = voy.ladenTransits[tn];
+      if (!tr) return;
+      ladenTransitDays += tr.days;
+      var c = tr.cost;
+      ladenTransitCost += (typeof c === 'object') ? (c[state.vesselClass] || c.MR50) : c;
+    });
   }
 
   // Between discharge ports
@@ -779,10 +816,10 @@ function calcBSIndiaTCE(openPos, rate, refDate) {
   var portBunkerDisch = dischPortDays * state.portConsDisch * voyVlsfo;
   var totalBunker = ladenBunker + ballastBunker + portBunkerLoad + portBunkerDisch;
 
-  // Port costs: load port(s) + discharge ports
+  // Port costs: load port(s) + one call per discharge port (1 or 2 ports)
   var portCosts = getPC(loadPort1);
   if (loadPort2) portCosts += getPC(loadPort2);
-  portCosts += getPC(ports[0]) + getPC(ports[1]);
+  ports.forEach(function(p) { portCosts += getPC(p); });
 
   // Total canal costs (ballast + laden transit)
   var totalTransitCost = ballastCanalCost + ladenTransitCost;
@@ -928,11 +965,11 @@ function renderResults() {
         '<span class="rc-region">' + regionLabel + '</span>' +
       '</div>' +
       '<div class="rc-breakeven" style="color:' + beColor + '">$' + fmtD(beRate, 1) + '</div>' +
-      '<div class="rc-breakeven-unit">$/mt breakeven BS&rarr;India (' + state.dischRegion + ')</div>' +
+      '<div class="rc-breakeven-unit">$/mt breakeven BS&rarr;' + state.dischRegion + '</div>' +
       '<div class="rc-details">' +
-        '<div class="rc-detail"><span class="rc-dlabel">BS&rarr;India TCE </span><span class="rc-dvalue">$' + fmtN(bsTce) + '/d</span></div>' +
+        '<div class="rc-detail"><span class="rc-dlabel">BS&rarr;' + state.dischRegion + ' TCE </span><span class="rc-dvalue">$' + fmtN(bsTce) + '/d</span></div>' +
         '<div class="rc-detail"><span class="rc-dlabel">Comp TCE </span><span class="rc-dvalue">$' + fmtN(bestTce) + '/d</span></div>' +
-        '<div class="rc-detail"><span class="rc-dlabel">BS&rarr;India Days </span><span class="rc-dvalue">' + fmtD(r.bsIndiaVoyage.combinedDays, 1) + '</span></div>' +
+        '<div class="rc-detail"><span class="rc-dlabel">BS&rarr;' + state.dischRegion + ' Days </span><span class="rc-dvalue">' + fmtD(r.bsIndiaVoyage.combinedDays, 1) + '</span></div>' +
         '<div class="rc-detail"><span class="rc-dlabel">Best Alt </span><span class="rc-dvalue">' + bestRoute + ' (' + (r.competition.best.comp.ffaMonth || '') + ')</span></div>' +
       '</div>' +
       (r.isAverage ? '<div class="rc-comp">Average of: ' + AVG_COMPONENTS.join(', ') + '</div>' :
@@ -956,7 +993,7 @@ function showDrillDown(pos) {
 
   // BS→India breakdown
   var bs = r.bsIndiaVoyage;
-  html += '<h3 style="color:var(--gold);font-size:13px;margin-bottom:8px;">Option A: BS&rarr;India (' + state.dischRegion + ') at $' + fmtD(r.breakevenRate, 1) + '/mt</h3>';
+  html += '<h3 style="color:var(--gold);font-size:13px;margin-bottom:8px;">Option A: BS&rarr;' + state.dischRegion + ' at $' + fmtD(r.breakevenRate, 1) + '/mt</h3>';
   html += '<table class="voy-table"><thead><tr><th>Item</th><th class="num-right">Value</th></tr></thead><tbody>';
   html += '<tr><td>Cargo</td><td class="num-right">' + fmtN(state.cargoSAIndia) + ' mt</td></tr>';
   html += '<tr><td>Rate</td><td class="num-right">$' + fmtD(r.breakevenRate, 2) + '/mt</td></tr>';
@@ -2304,7 +2341,7 @@ function init() {
       document.querySelectorAll('#dischToggle .toggle-btn').forEach(function(b) { b.classList.remove('active'); });
       btn.classList.add('active');
       state.dischRegion = btn.dataset.val;
-      calculateAll();
+      applyDischConstraints();  // vessel gating + cargo cap (recalcs via applyVesselClass)
       if (document.getElementById('tab-historical').classList.contains('active')) {
         calcHistoricalBreakevens();
       }
